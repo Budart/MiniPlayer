@@ -4,6 +4,8 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Shapes;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -76,7 +78,7 @@ namespace MiniPlayer
         {
             bar = taskbar; isPrimary = primary;
             InitializeComponent();
-            Loaded += async (_, __) => { Setup(); UpdateBatteries(); await InitMedia(); };
+            Loaded += async (_, __) => { Setup(); SetupSpectrum(); UpdateBatteries(); await InitMedia(); };
             App.BatteriesChanged += UpdateBatteries;
             Closed += (_, __) => App.BatteriesChanged -= UpdateBatteries;
             Root.MouseRightButtonUp += (_, __) => ShowMenu();
@@ -117,7 +119,7 @@ namespace MiniPlayer
             {
                 var src = PresentationSource.FromVisual(this);
                 double s = src?.CompositionTarget?.TransformToDevice.M11 ?? 1;
-                var hh = Math.Min(48, (r.B - r.T) / s); if (Math.Abs(Height - hh) > 0.5) Height = hh;
+                var hh = (r.B - r.T) / s; if (Math.Abs(Height - hh) > 0.5) Height = hh;
                 int wPx = w.R - w.L, hPx = w.B - w.T, x;
                 if (App.Centered) x = r.L + (int)(8 * s);                       // canto esquerdo da barra
                 else
@@ -212,17 +214,67 @@ namespace MiniPlayer
             if (!App.ShowBattery) return;
             foreach (var b in App.Batteries)
             {
-                // ícone em cima, % embaixo; raio quando carregando
-                var sp = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(8, 0, 0, 0), ToolTip = $"{b.Name}: {b.Percent}%" + (b.Charging ? " (carregando)" : ""), Background = Brushes.Transparent, VerticalAlignment = VerticalAlignment.Center };
-                var top = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
-                top.Children.Add(new TextBlock { Text = b.Glyph, FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 14, Foreground = Brushes.White });
-                if (b.Charging) top.Children.Add(new TextBlock { Text = "\uE945", FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 10, Margin = new Thickness(1, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = Brushes.Gold });
-                sp.Children.Add(top);
-                sp.Children.Add(new TextBlock { Text = b.Percent + "%", FontSize = 10, HorizontalAlignment = HorizontalAlignment.Center,
+                // ícone em cima, % embaixo (centralizados); raio branco colado à direita, sem deslocar o alinhamento
+                var col = new StackPanel { Orientation = Orientation.Vertical, HorizontalAlignment = HorizontalAlignment.Center };
+                col.Children.Add(new TextBlock { Text = b.Glyph, FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 14, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center });
+                col.Children.Add(new TextBlock { Text = b.Percent + "%", FontSize = 10, HorizontalAlignment = HorizontalAlignment.Center,
                     Foreground = b.Percent <= 20 && !b.Charging ? Brushes.OrangeRed : Brushes.White });
+                var sp = new Grid { Margin = new Thickness(8, 0, b.Charging ? 6 : 0, 0), VerticalAlignment = VerticalAlignment.Center, Background = Brushes.Transparent,
+                    ToolTip = $"{b.Name}: {b.Percent}%" + (b.Charging ? " (carregando)" : "") };
+                sp.Children.Add(col);
+                if (b.Charging)
+                    sp.Children.Add(new TextBlock { Text = "", FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 9, Foreground = Brushes.White,
+                        HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, -7, 0) });
                 BatteryPanel.Children.Add(sp);
             }
         });
+
+        // Barras do espectro atrás dos botões, na cor predominante da capa
+        readonly SolidColorBrush accent = new(Colors.White);
+        readonly float[] shown = new float[App.Bands];
+        void SetupSpectrum()
+        {
+            for (int i = 0; i < App.Bands; i++)
+                Spectrum.Children.Add(new Rectangle { Fill = accent, Margin = new Thickness(1, 0, 1, 0), VerticalAlignment = VerticalAlignment.Bottom, Height = 0, RadiusX = 1, RadiusY = 1 });
+            var t = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(33) };
+            t.Tick += (_, __) =>
+            {
+                if (!IsVisible) return;
+                bool live = (DateTime.Now - App.LastAudio).TotalMilliseconds < 200;
+                double h = Spectrum.ActualHeight;
+                for (int i = 0; i < App.Bands; i++)
+                {
+                    float target = live ? App.Levels[i] : 0;
+                    shown[i] = target > shown[i] ? target : shown[i] * 0.85f; // sobe rápido, desce suave
+                    ((Rectangle)Spectrum.Children[i]).Height = Math.Max(0, shown[i] * h);
+                }
+            };
+            t.Start();
+            Closed += (_, __) => t.Stop();
+        }
+
+        // Cor predominante (mais saturada) da capa
+        static Color Accent(BitmapSource src)
+        {
+            try
+            {
+                var small = new FormatConvertedBitmap(new TransformedBitmap(src, new ScaleTransform(16.0 / src.PixelWidth, 16.0 / src.PixelHeight)), PixelFormats.Bgra32, null, 0);
+                int w = small.PixelWidth, h = small.PixelHeight;
+                var px = new byte[w * h * 4]; small.CopyPixels(px, w * 4, 0);
+                double r = 0, g = 0, b = 0, wt = 0;
+                for (int i = 0; i < px.Length; i += 4)
+                {
+                    int B = px[i], G = px[i + 1], R = px[i + 2];
+                    int mx = Math.Max(R, Math.Max(G, B)), mn = Math.Min(R, Math.Min(G, B));
+                    double sat = mx == 0 ? 0 : (mx - mn) / (double)mx, k = 0.02 + sat * sat * (mx / 255.0);
+                    r += R * k; g += G * k; b += B * k; wt += k;
+                }
+                r /= wt; g /= wt; b /= wt;
+                double max = Math.Max(r, Math.Max(g, b)), f = max < 1 ? 1 : 255 / max; // clareia até o máximo
+                return Color.FromRgb((byte)(r * f), (byte)(g * f), (byte)(b * f));
+            }
+            catch { return Colors.White; }
+        }
 
         static void ToggleStartup(string lnk, bool on)
         {
@@ -265,7 +317,7 @@ namespace MiniPlayer
                 ArtistText.Text = p.Artist;
                 var playing = session.GetPlaybackInfo().PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
                 PlayBtn.Content = playing ? "" : "";
-                Art.Source = null; NoArt.Visibility = Visibility.Visible;
+                Art.Source = null; NoArt.Visibility = Visibility.Visible; accent.Color = Colors.White;
                 if (p.Thumbnail != null)
                 {
                     using var ws = await p.Thumbnail.OpenReadAsync();
@@ -273,6 +325,7 @@ namespace MiniPlayer
                     var ms = new MemoryStream(); await st.CopyToAsync(ms); ms.Position = 0;
                     var bmp = new BitmapImage(); bmp.BeginInit(); bmp.CacheOption = BitmapCacheOption.OnLoad; bmp.StreamSource = ms; bmp.EndInit(); bmp.Freeze();
                     Art.Source = bmp; NoArt.Visibility = Visibility.Collapsed;
+                    accent.Color = Accent(bmp);
                 }
             }
             catch { }
