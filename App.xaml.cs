@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Threading;
@@ -18,21 +19,37 @@ namespace MiniPlayer
         [DllImport("user32.dll")] static extern IntPtr FindWindow(string c, string w);
 
         static readonly string Cfg = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "MiniPlayer.txt");
-        public static bool Floating; public static double FloatX = 200, FloatY = 200;
+        public static bool Floating, ShowBattery = true;
+        public static List<BtBattery> Batteries = new();
+        public static event Action BatteriesChanged;
+        static TaskCompletionSource<bool> kick = new();
+        public static void RefreshBatteries() { BatteriesChanged?.Invoke(); kick.TrySetResult(true); }
+
+        // Lê baterias Bluetooth em segundo plano a cada 60s (ou quando a opção é ligada)
+        static async void BatteryLoop()
+        {
+            while (true)
+            {
+                if (ShowBattery) { try { Batteries = await Task.Run(BatteryReader.ReadAll); } catch { } BatteriesChanged?.Invoke(); }
+                kick = new();
+                await Task.WhenAny(Task.Delay(60000), kick.Task);
+            }
+        }
         public static bool Centered => (Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "TaskbarAl", 1) as int? ?? 1) != 0;
 
         readonly Dictionary<IntPtr, MainWindow> players = new();
 
         void OnStartup(object s, StartupEventArgs e)
         {
-            try { var p = File.ReadAllText(Cfg).Split(';'); Floating = p[0] == "1"; FloatX = double.Parse(p[1]); FloatY = double.Parse(p[2]); } catch { }
+            try { var p = File.ReadAllText(Cfg).Split(';'); Floating = p[0] == "1"; FloatX = double.Parse(p[1]); FloatY = double.Parse(p[2]); if (p.Length > 3) ShowBattery = p[3] == "1"; } catch { }
             Sync();
+            BatteryLoop();
             var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             t.Tick += (_, __) => Sync();
             t.Start();
         }
 
-        public static void Save() { try { File.WriteAllText(Cfg, $"{(Floating ? 1 : 0)};{FloatX};{FloatY}"); } catch { } }
+        public static void Save() { try { File.WriteAllText(Cfg, $"{(Floating ? 1 : 0)};{FloatX};{FloatY};{(ShowBattery ? 1 : 0)}"); } catch { } }
 
         // Decide quais barras recebem player: fixo = todas as barras; solto = só a principal
         void Sync()

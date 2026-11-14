@@ -5,4 +5,7 @@
     <UseWPF>true</UseWPF>
     <AssemblyName>MiniPlayer</AssemblyName>
   </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="HidSharp" Version="2.1.0" />
+  </ItemGroup>
 </Project>
