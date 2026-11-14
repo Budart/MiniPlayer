@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Windows.Media.Control;
@@ -27,6 +28,8 @@ namespace MiniPlayer
         delegate void WinEventProc(IntPtr hook, uint ev, IntPtr h, int o, int c, uint t, uint ms);
         [DllImport("user32.dll")] static extern IntPtr SetWinEventHook(uint min, uint max, IntPtr mod, WinEventProc p, uint pid, uint tid, uint fl);
         [DllImport("shell32.dll")] static extern int SHQueryUserNotificationState(out int st);
+        [DllImport("user32.dll")] static extern short GetAsyncKeyState(int k);
+        ContextMenu openMenu;
         struct RECT { public int L, T, R, B; }
         [StructLayout(LayoutKind.Sequential)] struct MONITORINFO { public int cb; public RECT rc, work; public uint f; }
         WinEventProc hookProc; bool menuOpen, fullscreen;
@@ -41,7 +44,9 @@ namespace MiniPlayer
         {
             bar = taskbar; isPrimary = primary;
             InitializeComponent();
-            Loaded += async (_, __) => { Setup(); await InitMedia(); };
+            Loaded += async (_, __) => { Setup(); UpdateBatteries(); await InitMedia(); };
+            App.BatteriesChanged += UpdateBatteries;
+            Closed += (_, __) => App.BatteriesChanged -= UpdateBatteries;
             Root.MouseRightButtonUp += (_, __) => ShowMenu();
             Root.MouseLeftButtonDown += (s, e) =>
             {
@@ -60,7 +65,13 @@ namespace MiniPlayer
             var h1 = SetWinEventHook(0x0003, 0x0003, IntPtr.Zero, hookProc, 0, 0, 0);       // foco mudou
             var t = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
             int n = 0;
-            t.Tick += (_, __) => { if (!pending && ++n % 3 != 0) return; pending = false; CheckFullscreen(); if (!dragging) Place(); };
+            t.Tick += (_, __) =>
+            {
+                // fecha o menu ao clicar fora dele
+                if (openMenu != null && openMenu.IsOpen && !openMenu.IsMouseOver
+                    && ((GetAsyncKeyState(1) & 0x8000) != 0 || (GetAsyncKeyState(2) & 0x8000) != 0)) openMenu.IsOpen = false;
+                if (!pending && ++n % 3 != 0) return; pending = false; CheckFullscreen(); if (!dragging) Place();
+            };
             t.Start();
             Closed += (_, __) => { t.Stop(); UnhookWinEvent(h1); };
         }
@@ -153,13 +164,30 @@ namespace MiniPlayer
             var free = new MenuItem { Header = "Soltar (arrastar livremente)", IsCheckable = true, IsChecked = App.Floating };
             free.Click += (_, __) => { App.Floating = free.IsChecked; if (App.Floating) { App.FloatX = Left; App.FloatY = Top - 60; } App.Save(); };
             m.Items.Add(free);
+            var bat = new MenuItem { Header = "Mostrar bateria Bluetooth", IsCheckable = true, IsChecked = App.ShowBattery };
+            bat.Click += (_, __) => { App.ShowBattery = bat.IsChecked; App.Save(); App.RefreshBatteries(); };
             var quit = new MenuItem { Header = "Fechar" };
             quit.Click += (_, __) => Application.Current.Shutdown();
             m.Items.Add(auto); m.Items.Add(quit);
             m.Opened += (_, __) => menuOpen = true;
             m.Closed += (_, __) => menuOpen = false;
-            menuOpen = true; m.IsOpen = true;
+            openMenu = m; menuOpen = true; m.IsOpen = true;
         }
+
+        // Ícone + % de cada dispositivo Bluetooth com bateria
+        void UpdateBatteries() => Dispatcher.Invoke(() =>
+        {
+            BatteryPanel.Children.Clear();
+            if (!App.ShowBattery) return;
+            foreach (var b in App.Batteries)
+            {
+                var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(8, 0, 0, 0), ToolTip = $"{b.Name}: {b.Percent}%", Background = Brushes.Transparent };
+                sp.Children.Add(new TextBlock { Text = b.Glyph, FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 14, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
+                sp.Children.Add(new TextBlock { Text = b.Percent + "%", FontSize = 11, Margin = new Thickness(3, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center,
+                    Foreground = b.Percent <= 20 ? Brushes.OrangeRed : Brushes.White });
+                BatteryPanel.Children.Add(sp);
+            }
+        });
 
         static void ToggleStartup(string lnk, bool on)
         {
