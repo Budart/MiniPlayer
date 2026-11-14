@@ -69,8 +69,11 @@ namespace MiniPlayer
                             if (ds5) idx = buf[0] == 0x31 ? 54 : (buf[0] == 0x01 && !bt ? 53 : -1);
                             else idx = buf[0] == 0x11 ? 32 : (buf[0] == 0x01 && !bt ? 30 : -1);
                             if (idx < 0 || idx >= n) continue;
-                            int pct = Math.Min(100, (buf[idx] & 0x0F) * 10);
-                            list.Add(new BtBattery(ds5 ? "DualSense" : "DualShock 4", pct, ""));
+                            int v = buf[idx];
+                            // DualSense: nibble alto 1=carregando, 2=cheio. DS4: bit 0x10 = cabo conectado
+                            bool chg = ds5 ? ((v >> 4) == 1 || (v >> 4) == 2) : (v & 0x10) != 0;
+                            int pct = Math.Min(100, (v & 0x0F) * 10);
+                            list.Add((new BtBattery(ds5 ? "DualSense" : "DualShock 4", pct, "\uE7FC", chg || !bt), bt));
                             break;
                         }
                     }
@@ -93,8 +96,8 @@ namespace MiniPlayer
             if (new[] { "controller", "dualsense", "dualshock", "xbox", "gamepad", "playstation", "joy-con", "8bitdo" }.Any(n.Contains)) return "";
             if (new[] { "buds", "head", "fone", "airpods", "ear", "wh-", "wf-", "jbl", "headset", "tws", "soundcore", "audio", "qc", "beats" }.Any(n.Contains)) return "";
             if (new[] { "speaker", "caixa", "soundlink" }.Any(n.Contains)) return "";
-            if (n.Contains("keyboard") || n.Contains("teclado")) return "";
-            if (n.Contains("mouse")) return "";
+            if (new[] { "keyboard", "teclado", "keys", "k380", "k780" }.Any(n.Contains)) return "";
+            if (new[] { "mouse", "mx master", "mx anywhere", "trackpad", "m720", "m590" }.Any(n.Contains)) return "";
             if (n.Contains("pen") || n.Contains("caneta")) return "";
             return "";
         }
