@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
-using System.Windows.Shapes;
+using Rectangle = System.Windows.Shapes.Rectangle;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
