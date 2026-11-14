@@ -7,7 +7,7 @@ using Windows.Devices.Enumeration;
 
 namespace MiniPlayer
 {
-    public record BtBattery(string Name, int Percent, string Glyph);
+    public record BtBattery(string Name, int Percent, string Glyph, bool Charging = false);
 
     // Lê bateria de dispositivos Bluetooth: o que o Windows informa (fones, Xbox, teclados...)
     // + leitura direta de controles PlayStation (DualSense / DualShock 4), que o Windows não informa
@@ -47,7 +47,7 @@ namespace MiniPlayer
 
         static IEnumerable<BtBattery> ReadPlayStation()
         {
-            var list = new List<BtBattery>();
+            var list = new List<(BtBattery b, bool bt)>();
             foreach (var dev in DeviceList.Local.GetHidDevices(0x054C))
             {
                 int pid = dev.ProductID;
@@ -77,7 +77,13 @@ namespace MiniPlayer
                 }
                 catch { }
             }
-            return list;
+            // mesmo controle no Bluetooth e no cabo aparece duas vezes: para cada um via USB, descarta um via Bluetooth do mesmo modelo
+            foreach (var usb in list.Where(x => !x.bt).ToList())
+            {
+                var dup = list.FirstOrDefault(x => x.bt && x.b.Name == usb.b.Name);
+                if (dup.b != null) list.Remove(dup);
+            }
+            return list.Select(x => x.b);
         }
 
         // Ícone pelo nome do dispositivo
@@ -85,7 +91,7 @@ namespace MiniPlayer
         {
             n = (n ?? "").ToLowerInvariant();
             if (new[] { "controller", "dualsense", "dualshock", "xbox", "gamepad", "playstation", "joy-con", "8bitdo" }.Any(n.Contains)) return "";
-            if (new[] { "buds", "head", "fone", "airpods", "ear", "wh-", "wf-", "jbl", "soundcore", "audio", "qc", "beats" }.Any(n.Contains)) return "";
+            if (new[] { "buds", "head", "fone", "airpods", "ear", "wh-", "wf-", "jbl", "headset", "tws", "soundcore", "audio", "qc", "beats" }.Any(n.Contains)) return "";
             if (new[] { "speaker", "caixa", "soundlink" }.Any(n.Contains)) return "";
             if (n.Contains("keyboard") || n.Contains("teclado")) return "";
             if (n.Contains("mouse")) return "";
