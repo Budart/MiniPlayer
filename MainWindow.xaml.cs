@@ -30,6 +30,38 @@ namespace MiniPlayer
         [DllImport("shell32.dll")] static extern int SHQueryUserNotificationState(out int st);
         [DllImport("user32.dll")] static extern short GetAsyncKeyState(int k);
         ContextMenu openMenu;
+        // gancho global de mouse: fecha o menu ao clicar em qualquer lugar fora dele
+        delegate IntPtr LowLevelProc(int code, IntPtr wp, IntPtr lp);
+        [DllImport("user32.dll")] static extern IntPtr SetWindowsHookEx(int id, LowLevelProc p, IntPtr mod, uint tid);
+        [DllImport("user32.dll")] static extern bool UnhookWindowsHookEx(IntPtr h);
+        [DllImport("user32.dll")] static extern IntPtr CallNextHookEx(IntPtr h, int c, IntPtr wp, IntPtr lp);
+        [DllImport("kernel32.dll")] static extern IntPtr GetModuleHandle(string n);
+        LowLevelProc mouseProc; IntPtr mouseHook;
+        void HookMouse()
+        {
+            mouseProc = (code, wp, lp) =>
+            {
+                int msg = (int)wp;
+                if (code >= 0 && (msg == 0x201 || msg == 0x204 || msg == 0x207))
+                {
+                    int x = Marshal.ReadInt32(lp), y = Marshal.ReadInt32(lp, 4);
+                    Dispatcher.BeginInvoke(() =>
+                    {
+                        if (openMenu == null || !openMenu.IsOpen) return;
+                        try
+                        {
+                            var a = openMenu.PointToScreen(new Point(0, 0));
+                            var b = openMenu.PointToScreen(new Point(openMenu.ActualWidth, openMenu.ActualHeight));
+                            if (x < a.X || x > b.X || y < a.Y || y > b.Y) openMenu.IsOpen = false;
+                        }
+                        catch { openMenu.IsOpen = false; }
+                    });
+                }
+                return CallNextHookEx(mouseHook, code, wp, lp);
+            };
+            mouseHook = SetWindowsHookEx(14, mouseProc, GetModuleHandle(null), 0);
+        }
+        void UnhookMouse() { if (mouseHook != IntPtr.Zero) { UnhookWindowsHookEx(mouseHook); mouseHook = IntPtr.Zero; } }
         struct RECT { public int L, T, R, B; }
         [StructLayout(LayoutKind.Sequential)] struct MONITORINFO { public int cb; public RECT rc, work; public uint f; }
         WinEventProc hookProc; bool menuOpen, fullscreen;
@@ -68,8 +100,6 @@ namespace MiniPlayer
             t.Tick += (_, __) =>
             {
                 // fecha o menu ao clicar fora dele
-                if (openMenu != null && openMenu.IsOpen && !openMenu.IsMouseOver
-                    && ((GetAsyncKeyState(1) & 0x8000) != 0 || (GetAsyncKeyState(2) & 0x8000) != 0)) openMenu.IsOpen = false;
                 if (!pending && ++n % 3 != 0) return; pending = false; CheckFullscreen(); if (!dragging) Place();
             };
             t.Start();
@@ -168,9 +198,10 @@ namespace MiniPlayer
             bat.Click += (_, __) => { App.ShowBattery = bat.IsChecked; App.Save(); App.RefreshBatteries(); };
             var quit = new MenuItem { Header = "Fechar" };
             quit.Click += (_, __) => Application.Current.Shutdown();
-            m.Items.Add(auto); m.Items.Add(quit);
+            m.Items.Add(bat); m.Items.Add(auto); m.Items.Add(quit);
             m.Opened += (_, __) => menuOpen = true;
-            m.Closed += (_, __) => menuOpen = false;
+            m.Opened += (_, __) => HookMouse();
+            m.Closed += (_, __) => { menuOpen = false; UnhookMouse(); };
             openMenu = m; menuOpen = true; m.IsOpen = true;
         }
 
