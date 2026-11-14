@@ -20,6 +20,7 @@ namespace MiniPlayer
 
         static readonly string Cfg = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "MiniPlayer.txt");
         public static bool Floating, ShowBattery = true;
+        public static double FloatX = 200, FloatY = 200;
         public static List<BtBattery> Batteries = new();
         public static event Action BatteriesChanged;
         static TaskCompletionSource<bool> kick = new();
