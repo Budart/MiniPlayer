@@ -45,7 +45,7 @@ namespace MiniPlayer
                 if (code >= 0 && (msg == 0x201 || msg == 0x204 || msg == 0x207))
                 {
                     int x = Marshal.ReadInt32(lp), y = Marshal.ReadInt32(lp, 4);
-                    Dispatcher.BeginInvoke(() =>
+                    Dispatcher.InvokeAsync(() =>
                     {
                         if (openMenu == null || !openMenu.IsOpen) return;
                         try
