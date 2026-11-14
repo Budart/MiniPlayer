@@ -212,10 +212,14 @@ namespace MiniPlayer
             if (!App.ShowBattery) return;
             foreach (var b in App.Batteries)
             {
-                var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(8, 0, 0, 0), ToolTip = $"{b.Name}: {b.Percent}%", Background = Brushes.Transparent };
-                sp.Children.Add(new TextBlock { Text = b.Glyph, FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 14, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center });
-                sp.Children.Add(new TextBlock { Text = b.Percent + "%", FontSize = 11, Margin = new Thickness(3, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center,
-                    Foreground = b.Percent <= 20 ? Brushes.OrangeRed : Brushes.White });
+                // ícone em cima, % embaixo; raio quando carregando
+                var sp = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(8, 0, 0, 0), ToolTip = $"{b.Name}: {b.Percent}%" + (b.Charging ? " (carregando)" : ""), Background = Brushes.Transparent, VerticalAlignment = VerticalAlignment.Center };
+                var top = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
+                top.Children.Add(new TextBlock { Text = b.Glyph, FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 14, Foreground = Brushes.White });
+                if (b.Charging) top.Children.Add(new TextBlock { Text = "\uE945", FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 10, Margin = new Thickness(1, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Foreground = Brushes.Gold });
+                sp.Children.Add(top);
+                sp.Children.Add(new TextBlock { Text = b.Percent + "%", FontSize = 10, HorizontalAlignment = HorizontalAlignment.Center,
+                    Foreground = b.Percent <= 20 && !b.Charging ? Brushes.OrangeRed : Brushes.White });
                 BatteryPanel.Children.Add(sp);
             }
         });
