@@ -362,6 +362,8 @@ namespace MiniPlayer
             var th = App.CurrentTheme;
             fg = B(th.Fg);
             Root.Background = B(th.Bg);
+            // temas com fundo: leve recuo (3 px) para o fundo parecer "dentro" da barra, sem encostar nas bordas dela
+            Root.Margin = App.Theme == 0 ? new Thickness(0) : new Thickness(3);
             TitleText.Foreground = fg; ArtistText.Foreground = B(th.Fg2); NoArt.Foreground = fg;
             PrevBtn.Foreground = PlayBtn.Foreground = NextBtn.Foreground = fg;
             foreach (Rectangle r in Spectrum.Children) r.Fill = th.Spectrum != null ? B(th.Spectrum) : accent;
