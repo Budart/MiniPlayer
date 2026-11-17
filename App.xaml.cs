@@ -22,7 +22,23 @@ namespace MiniPlayer
         [DllImport("user32.dll")] static extern IntPtr FindWindow(string c, string w);
 
         static readonly string Cfg = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "MiniPlayer.txt");
-        public static bool Floating, ShowBattery = true, FloatBehind;
+        public static bool Floating, ShowBattery = true, FloatBehind, HidePlayer;
+        public static int Theme;
+        public static event Action LookChanged; // tema ou "ocultar player" mudou
+
+        // Temas: fundo, texto principal, texto secundário, cor fixa do espectro (null = cor da capa)
+        public record ThemeDef(string Name, string Bg, string Fg, string Fg2, string Spectrum);
+        public static readonly ThemeDef[] Themes =
+        {
+            new("Padrão (transparente)", "#01000000", "#FFFFFFFF", "#BBFFFFFF", null),
+            new("Escuro",                "#E61B1D22", "#FFFFFFFF", "#AAFFFFFF", null),
+            new("Claro",                 "#EEF4F5F7", "#FF1B1D22", "#991B1D22", null),
+            new("Neon",                  "#E60B0F1A", "#FF00E5FF", "#AAFF4FD8", "#FF00E5FF"),
+            new("Pôr do sol",            "#E62A1410", "#FFFFC27A", "#BBFF8A65", "#FFFF7A45"),
+        };
+        public static ThemeDef CurrentTheme => Themes[Math.Clamp(Theme, 0, Themes.Length - 1)];
+        public static void SetTheme(int i) { Theme = i; Save(); LookChanged?.Invoke(); }
+        public static void SetHidePlayer(bool on) { HidePlayer = on; Save(); LookChanged?.Invoke(); }
         public static double FloatX = 200, FloatY = 200;
         public static List<BtBattery> Batteries = new();
         public static event Action BatteriesChanged;
@@ -39,7 +55,7 @@ namespace MiniPlayer
 
         void OnStartup(object s, StartupEventArgs e)
         {
-            try { var p = File.ReadAllText(Cfg).Split(';'); Floating = p[0] == "1"; FloatX = double.Parse(p[1], CultureInfo.InvariantCulture); FloatY = double.Parse(p[2], CultureInfo.InvariantCulture); if (p.Length > 3) ShowBattery = p[3] == "1"; if (p.Length > 4) FloatBehind = p[4] == "1"; } catch { }
+            try { var p = File.ReadAllText(Cfg).Split(';'); Floating = p[0] == "1"; FloatX = double.Parse(p[1], CultureInfo.InvariantCulture); FloatY = double.Parse(p[2], CultureInfo.InvariantCulture); if (p.Length > 3) ShowBattery = p[3] == "1"; if (p.Length > 4) FloatBehind = p[4] == "1"; if (p.Length > 5) HidePlayer = p[5] == "1"; if (p.Length > 6) Theme = int.Parse(p[6]); } catch { }
             Sync();
             SetupTray();
             BatteryReader.Changed += () => Dispatcher.BeginInvoke(new Action(RefreshBatteries));
@@ -149,7 +165,18 @@ namespace MiniPlayer
                 }));
                 menu.Items.Add(Item("Manter atrás das janelas", () => FloatBehind, SetBehind, () => Floating));
                 menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
+                menu.Items.Add(Item("Ocultar player (só baterias)", () => HidePlayer, SetHidePlayer));
                 menu.Items.Add(Item("Mostrar bateria", () => ShowBattery, SetBattery));
+                var temas = new System.Windows.Forms.ToolStripMenuItem("Temas");
+                for (int t = 0; t < Themes.Length; t++)
+                {
+                    int idx = t;
+                    var ti = new System.Windows.Forms.ToolStripMenuItem(Themes[t].Name);
+                    ti.Click += (_, __) => SetTheme(idx);
+                    temas.DropDownOpening += (_, __) => ti.Checked = Theme == idx;
+                    temas.DropDownItems.Add(ti);
+                }
+                menu.Items.Add(temas);
                 menu.Items.Add(Item("Iniciar com o Windows", () => StartsWithWindows, SetStartup));
                 menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
                 menu.Items.Add("Fechar", null, (_, __) => Quit());
@@ -165,7 +192,7 @@ namespace MiniPlayer
             catch { }
         }
 
-        public static void Save() { try { File.WriteAllText(Cfg, string.Create(CultureInfo.InvariantCulture, $"{(Floating ? 1 : 0)};{FloatX};{FloatY};{(ShowBattery ? 1 : 0)};{(FloatBehind ? 1 : 0)}")); } catch { } }
+        public static void Save() { try { File.WriteAllText(Cfg, string.Create(CultureInfo.InvariantCulture, $"{(Floating ? 1 : 0)};{FloatX};{FloatY};{(ShowBattery ? 1 : 0)};{(FloatBehind ? 1 : 0)};{(HidePlayer ? 1 : 0)};{Theme}")); } catch { } }
 
         // Decide quais barras recebem player: fixo = todas as barras; solto = só a principal
         public void Sync()

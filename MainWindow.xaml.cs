@@ -79,6 +79,9 @@ namespace MiniPlayer
             InitializeComponent();
             Loaded += async (_, __) => { Setup(); SetupSpectrum(); UpdateBatteries(); await InitMedia(); };
             App.BatteriesChanged += UpdateBatteries;
+            App.LookChanged += ApplyLook;
+            Closed += (_, __) => App.LookChanged -= ApplyLook;
+            Loaded += (_, __) => ApplyLook();
             Closed += (_, __) => App.BatteriesChanged -= UpdateBatteries;
             Root.MouseRightButtonUp += (_, __) => ShowMenu();
             Root.MouseLeftButtonDown += (s, e) =>
@@ -213,6 +216,22 @@ namespace MiniPlayer
             Visibility = fs ? Visibility.Hidden : Visibility.Visible;
         }
 
+        // Tema e "ocultar player"
+        Brush fg = Brushes.White;
+        static SolidColorBrush B(string hex) { var b = new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex)); b.Freeze(); return b; }
+        void ApplyLook()
+        {
+            var th = App.CurrentTheme;
+            fg = B(th.Fg);
+            Root.Background = B(th.Bg);
+            TitleText.Foreground = fg; ArtistText.Foreground = B(th.Fg2); NoArt.Foreground = fg;
+            PrevBtn.Foreground = PlayBtn.Foreground = NextBtn.Foreground = fg;
+            foreach (Rectangle r in Spectrum.Children) r.Fill = th.Spectrum != null ? B(th.Spectrum) : accent;
+            var vis = App.HidePlayer ? Visibility.Collapsed : Visibility.Visible;
+            Controls.Visibility = Spectrum.Visibility = ArtBox.Visibility = InfoPanel.Visibility = vis;
+            UpdateBatteries();
+        }
+
         // Menu do botão direito: as mesmas opções do ícone da bandeja (ações centralizadas no App)
         void ShowMenu()
         {
@@ -226,7 +245,17 @@ namespace MiniPlayer
             m.Items.Add(Item("Soltar (arrastar livremente)", App.Floating, true, on => App.SetFloating(on, Left, Top - 60)));
             m.Items.Add(Item("Manter atrás das janelas", App.FloatBehind, App.Floating, App.SetBehind));
             m.Items.Add(new Separator());
+            m.Items.Add(Item("Ocultar player (só baterias)", App.HidePlayer, true, App.SetHidePlayer));
             m.Items.Add(Item("Mostrar bateria", App.ShowBattery, true, App.SetBattery));
+            var temas = new MenuItem { Header = "Temas" };
+            for (int t = 0; t < App.Themes.Length; t++)
+            {
+                int idx = t;
+                var ti = new MenuItem { Header = App.Themes[t].Name, IsCheckable = true, IsChecked = App.Theme == idx };
+                ti.Click += (_, __) => App.SetTheme(idx);
+                temas.Items.Add(ti);
+            }
+            m.Items.Add(temas);
             m.Items.Add(Item("Iniciar com o Windows", App.StartsWithWindows, true, App.SetStartup));
             m.Items.Add(new Separator());
             var quit = new MenuItem { Header = "Fechar" };
@@ -246,16 +275,16 @@ namespace MiniPlayer
             {
                 // coluna 1: desenho + % (centralizados); coluna 2: raio, centralizado na altura, colado
                 var col = new StackPanel { Orientation = Orientation.Vertical, VerticalAlignment = VerticalAlignment.Center };
-                col.Children.Add(new System.Windows.Shapes.Path { Data = Geometry.Parse(Icons.TryGetValue(b.Glyph, out var g) ? g : Icons["bt"]), Stroke = Brushes.White, StrokeThickness = 1.4,
+                col.Children.Add(new System.Windows.Shapes.Path { Data = Geometry.Parse(Icons.TryGetValue(b.Glyph, out var g) ? g : Icons["bt"]), Stroke = fg, StrokeThickness = 1.4,
                     StrokeLineJoin = PenLineJoin.Round, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round,
                     Width = 22, Height = 16, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Center, SnapsToDevicePixels = true });
                 col.Children.Add(new TextBlock { Text = b.Percent + "%", FontSize = 10, HorizontalAlignment = HorizontalAlignment.Center,
-                    Foreground = b.Percent <= 20 && !b.Charging ? Brushes.OrangeRed : Brushes.White });
+                    Foreground = b.Percent <= 20 && !b.Charging ? Brushes.OrangeRed : fg });
                 var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Background = Brushes.Transparent,
                     ToolTip = $"{b.Name}: {b.Percent}%" + (b.Charging ? " (carregando)" : "") };
                 sp.Children.Add(col);
                 if (b.Charging)
-                    sp.Children.Add(new System.Windows.Shapes.Path { Data = Geometry.Parse("M6,0 L1,7 H4.5 L3,12 L9,4.5 H5.5 Z"), Fill = Brushes.White,
+                    sp.Children.Add(new System.Windows.Shapes.Path { Data = Geometry.Parse("M6,0 L1,7 H4.5 L3,12 L9,4.5 H5.5 Z"), Fill = fg,
                         Width = 6, Height = 10, Stretch = Stretch.Uniform, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(2, 0, 0, 0) });
                 BatteryPanel.Children.Add(sp);
             }
@@ -287,7 +316,7 @@ namespace MiniPlayer
             for (int i = 0; i < App.Bands; i++)
             {
                 scales[i] = new ScaleTransform(1, 0);
-                Spectrum.Children.Add(new Rectangle { Fill = accent, Margin = new Thickness(1, 0, 1, 0), RadiusX = 1, RadiusY = 1,
+                Spectrum.Children.Add(new Rectangle { Fill = App.CurrentTheme.Spectrum != null ? B(App.CurrentTheme.Spectrum) : accent, Margin = new Thickness(1, 0, 1, 0), RadiusX = 1, RadiusY = 1,
                     RenderTransformOrigin = new Point(0.5, 1), RenderTransform = scales[i] });
             }
             bool idle = true;

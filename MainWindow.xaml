@@ -22,22 +22,22 @@
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
       </Grid.ColumnDefinitions>
-      <Border Grid.Column="1" Margin="6,0,0,0" Width="30" Height="30" CornerRadius="4" ClipToBounds="True" Background="#22FFFFFF">
+      <Border x:Name="ArtBox" Grid.Column="1" Margin="6,0,0,0" Width="30" Height="30" CornerRadius="4" ClipToBounds="True" Background="#22FFFFFF">
         <Grid>
           <TextBlock x:Name="NoArt" Text="&#xE8D6;" FontFamily="Segoe MDL2 Assets" Foreground="White"
                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
           <Image x:Name="Art" Stretch="UniformToFill"/>
         </Grid>
       </Border>
-      <StackPanel Grid.Column="2" Margin="8,0" MaxWidth="170" VerticalAlignment="Center">
+      <StackPanel x:Name="InfoPanel" Grid.Column="2" Margin="8,0" MaxWidth="170" VerticalAlignment="Center">
         <TextBlock x:Name="TitleText" Text="Nada tocando" Foreground="White" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
         <TextBlock x:Name="ArtistText" Foreground="#BBFFFFFF" FontSize="11" TextTrimming="CharacterEllipsis"/>
       </StackPanel>
       <UniformGrid x:Name="Spectrum" Grid.Column="0" Rows="1" Opacity="0.28" IsHitTestVisible="False"/>
-      <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-        <Button Content="&#xE892;" Click="Prev_Click"/>
+      <StackPanel x:Name="Controls" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+        <Button x:Name="PrevBtn" Content="&#xE892;" Click="Prev_Click"/>
         <Button x:Name="PlayBtn" Content="&#xE768;" Click="Play_Click"/>
-        <Button Content="&#xE893;" Click="Next_Click"/>
+        <Button x:Name="NextBtn" Content="&#xE893;" Click="Next_Click"/>
       </StackPanel>
       <StackPanel x:Name="BatteryPanel" Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,4,0"/>
     </Grid>
