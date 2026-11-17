@@ -103,14 +103,14 @@ namespace MiniPlayer
         static async Task RefreshHidKinds()
         {
             var map = new Dictionary<string, string>();
-            var kinds = new (ushort page, ushort id, string kind)[] { (0x01, 0x02, "mouse"), (0x01, 0x06, "kbd"), (0x01, 0x04, "pad"), (0x01, 0x05, "pad"), (0x01, 0x08, "pad") };
+            var kinds = new (ushort page, ushort id, string kind)[] { (0x01, 0x06, "kbd"), (0x01, 0x02, "mouse"), (0x01, 0x04, "pad"), (0x01, 0x05, "pad"), (0x01, 0x08, "pad") };
             foreach (var (page, id, kind) in kinds)
             {
                 try
                 {
                     var sel = Windows.Devices.HumanInterfaceDevice.HidDevice.GetDeviceSelector(page, id);
                     foreach (var di in await DeviceInformation.FindAllAsync(sel, new[] { ContainerKey }))
-                        if (di.Properties.TryGetValue(ContainerKey, out var c) && c != null) map[c.ToString()] = kind; // controle sobrescreve teclado/mouse
+                        if (di.Properties.TryGetValue(ContainerKey, out var c) && c != null) map[c.ToString()] = kind; // ordem: teclado < mouse < controle (mouses costumam expor também um "teclado" para macros)
                 }
                 catch { }
             }
@@ -166,7 +166,8 @@ namespace MiniPlayer
                     string name = string.IsNullOrEmpty(ct.name) ? d.Name : ct.name, cat = ct.cat ?? "";
                     var ids = d.Properties.TryGetValue(HwKey, out var h) && h is string[] arr ? string.Join(";", arr).ToLowerInvariant() : "";
                     // tipo: 1) VID/PID conhecido  2) classificação HID do Windows  3) categoria do aparelho  4) nome
-                    string kind = KindFromIds(ids) ?? (hk.TryGetValue(cid, out var k) ? k : null) ?? KindFromCategory(cat) ?? Kind(name, "bt");
+                    var byName = Kind(name, null);
+                    string kind = KindFromIds(ids) ?? byName ?? (hk.TryGetValue(cid, out var k) ? k : null) ?? KindFromCategory(cat) ?? "bt";
                     if ((kind == "ds5" || kind == "ds4") && PsActive(kind)) continue; // já lido direto, com mais precisão
                     res.Add(new BtBattery(name, pct, kind));
                 }
