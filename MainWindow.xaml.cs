@@ -114,7 +114,7 @@ namespace MiniPlayer
             var me = new WindowInteropHelper(this).Handle;
             if (App.Floating)
             {
-                SetVertical(false, 0);
+                SetVertical(App.FloatVertical, 56);
                 if (Math.Abs(Left - App.FloatX) > 1 || Math.Abs(Top - App.FloatY) > 1) { Left = App.FloatX; Top = App.FloatY; }
             }
             else if (GetWindowRect(bar, out var r) && GetWindowRect(me, out var w))
@@ -190,12 +190,14 @@ namespace MiniPlayer
             void At(UIElement e, int row, int col) { Grid.SetRow(e, row); Grid.SetColumn(e, col); }
             var parts = new UIElement[] { Controls, Spectrum, ArtBox, InfoPanel, BatteryPanel };
             Layout.RowDefinitions.Clear();
+            Layout.ColumnDefinitions.Clear();
+            for (int i = 0; i < 4; i++) Layout.ColumnDefinitions.Add(new ColumnDefinition { Width = on && i == 0 ? new GridLength(1, GridUnitType.Star) : GridLength.Auto });
             if (on)
             {
                 SizeToContent = SizeToContent.Height; Width = barWidth;
                 for (int i = 0; i < 4; i++) Layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
                 At(Controls, 0, 0); At(Spectrum, 0, 0); At(ArtBox, 1, 0); At(InfoPanel, 2, 0); At(BatteryPanel, 3, 0);
-                foreach (var e in parts) { Grid.SetColumnSpan(e, 4); Grid.SetRowSpan(e, 1); }
+                foreach (var e in parts) { Grid.SetColumnSpan(e, 1); Grid.SetRowSpan(e, 1); }
                 // botões empilhados e "apertadinhos"
                 Controls.Orientation = Orientation.Vertical;
                 foreach (var btn in new[] { PrevBtn, PlayBtn, NextBtn }) btn.Height = 20;
@@ -306,6 +308,7 @@ namespace MiniPlayer
             }
             m.Items.Add(Item("Soltar (arrastar livremente)", App.Floating, true, on => App.SetFloating(on, Left, Top - 60)));
             m.Items.Add(Item("Manter atrás das janelas", App.FloatBehind, App.Floating, App.SetBehind));
+            m.Items.Add(Item("Solto na vertical", App.FloatVertical, App.Floating, App.SetFloatVertical));
             m.Items.Add(new Separator());
             m.Items.Add(Item("Ocultar player (só baterias)", App.HidePlayer, App.ShowBattery, App.SetHidePlayer));
             m.Items.Add(Item("Mostrar bateria", App.ShowBattery, !App.HidePlayer, App.SetBattery));
