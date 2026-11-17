@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Threading;
@@ -25,21 +26,12 @@ namespace MiniPlayer
         public static double FloatX = 200, FloatY = 200;
         public static List<BtBattery> Batteries = new();
         public static event Action BatteriesChanged;
-        static TaskCompletionSource<bool> kick = new();
-        public static void Kick() => kick.TrySetResult(true);
-        public static void RefreshBatteries() { BatteriesChanged?.Invoke(); kick.TrySetResult(true); }
-
-        // Lê baterias Bluetooth em segundo plano a cada 60s (ou quando a opção é ligada)
-        static async void BatteryLoop()
+        // Publica a lista de baterias na interface só quando algo mudou
+        public static void RefreshBatteries()
         {
-            try { BatteryReader.StartWatching(); } catch { }
-            while (true)
-            {
-                kick = new();
-                if (ShowBattery) { try { Batteries = await Task.Run(BatteryReader.ReadAll); } catch { } BatteriesChanged?.Invoke(); }
-                await Task.WhenAny(Task.Delay(15000), kick.Task);
-                await Task.Delay(300); // agrupa eventos seguidos
-            }
+            var l = ShowBattery ? BatteryReader.Snapshot() : new List<BtBattery>();
+            if (l.SequenceEqual(Batteries)) return;
+            Batteries = l; BatteriesChanged?.Invoke();
         }
         public static bool Centered => (Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "TaskbarAl", 1) as int? ?? 1) != 0;
 
@@ -47,9 +39,10 @@ namespace MiniPlayer
 
         void OnStartup(object s, StartupEventArgs e)
         {
-            try { var p = File.ReadAllText(Cfg).Split(';'); Floating = p[0] == "1"; FloatX = double.Parse(p[1]); FloatY = double.Parse(p[2]); if (p.Length > 3) ShowBattery = p[3] == "1"; } catch { }
+            try { var p = File.ReadAllText(Cfg).Split(';'); Floating = p[0] == "1"; FloatX = double.Parse(p[1], CultureInfo.InvariantCulture); FloatY = double.Parse(p[2], CultureInfo.InvariantCulture); if (p.Length > 3) ShowBattery = p[3] == "1"; } catch { }
             Sync();
-            BatteryLoop();
+            BatteryReader.Changed += () => Dispatcher.BeginInvoke(new Action(RefreshBatteries));
+            try { BatteryReader.Start(); } catch { }
             StartSpectrum();
             var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             t.Tick += (_, __) => Sync();
@@ -106,7 +99,7 @@ namespace MiniPlayer
             LastAudio = DateTime.Now;
         }
 
-        public static void Save() { try { File.WriteAllText(Cfg, $"{(Floating ? 1 : 0)};{FloatX};{FloatY};{(ShowBattery ? 1 : 0)}"); } catch { } }
+        public static void Save() { try { File.WriteAllText(Cfg, string.Create(CultureInfo.InvariantCulture, $"{(Floating ? 1 : 0)};{FloatX};{FloatY};{(ShowBattery ? 1 : 0)}")); } catch { } }
 
         // Decide quais barras recebem player: fixo = todas as barras; solto = só a principal
         void Sync()

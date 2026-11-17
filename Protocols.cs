@@ -175,17 +175,19 @@ namespace MiniPlayer
         static readonly HashSet<int> Handled = new() { 0x054C, 0x046D, 0x1532, 0x057E };
         static bool IsBattery(uint u) => u == 0x00060020u || u == 0x00850066u;
 
+        static readonly Dictionary<string, bool> noBattery = new(); // cache: dispositivos sem bateria no descritor
+
         static IEnumerable<BtBattery> GenericHid()
         {
             var list = new List<BtBattery>(); var seen = new HashSet<string>();
             foreach (var dev in DeviceList.Local.GetHidDevices())
             {
-                if (Handled.Contains(dev.VendorID)) continue;
+                if (Handled.Contains(dev.VendorID) || noBattery.ContainsKey(dev.DevicePath)) continue;
                 try
                 {
                     var rd = dev.GetReportDescriptor();
                     var item = rd.DeviceItems.FirstOrDefault(di => di.InputReports.Any(r => r.DataItems.Any(x => x.Usages.GetAllValues().Any(IsBattery))));
-                    if (item == null) continue;
+                    if (item == null) { noBattery[dev.DevicePath] = true; continue; }
                     string name = SafeName(dev, "Dispositivo USB");
                     if (seen.Contains(name) || !dev.TryOpen(out var s)) continue;
                     using (s)
