@@ -116,7 +116,7 @@ namespace MiniPlayer
             Root.MouseLeftButtonDown += (s, e) =>
             {
                 if (!App.Floating || e.OriginalSource is Button) return;
-                dragging = true; DragMove(); dragging = false; App.FloatX = Left; App.FloatY = Top; App.Save();
+                dragging = true; DragMove(); dragging = false; KeepInsideMonitor(); App.FloatX = Left; App.FloatY = Top; App.Save();
             };
         }
 
@@ -153,6 +153,7 @@ namespace MiniPlayer
             {
                 SetVertical(App.FloatVertical, 56);
                 if (Math.Abs(Left - App.FloatX) > 1 || Math.Abs(Top - App.FloatY) > 1) { Left = App.FloatX; Top = App.FloatY; }
+                if (!dragging) KeepInsideMonitor();
             }
             else if (GetWindowRect(bar, out var r) && GetWindowRect(me, out var w))
             {
@@ -218,6 +219,29 @@ namespace MiniPlayer
             bool behind = App.Floating && App.FloatBehind && !OverTaskbar() && !DesktopInFront();
             if (Topmost == behind) Topmost = !behind;
             SetWindowPos(new WindowInteropHelper(this).Handle, new IntPtr(behind ? 1 : -1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010);
+        }
+
+        // Solto: o player fica sempre 100% dentro de UM monitor (o que contém o centro dele); nunca entre dois nem fora da tela
+        [DllImport("user32.dll")] static extern IntPtr MonitorFromPoint(POINT p, uint flags);
+        void KeepInsideMonitor()
+        {
+            var me = new WindowInteropHelper(this).Handle;
+            UpdateLayout();
+            if (!GetWindowRect(me, out var w)) return;
+            var mi = new MONITORINFO { cb = Marshal.SizeOf<MONITORINFO>() };
+            var center = new POINT { X = (w.L + w.R) / 2, Y = (w.T + w.B) / 2 };
+            if (!GetMonitorInfo(MonitorFromPoint(center, 2 /*mais próximo*/), ref mi)) return;
+            var m = mi.rc;
+            int x = w.L, y = w.T, ww = w.R - w.L, hh = w.B - w.T;
+            x = Math.Max(m.L, Math.Min(x, m.R - ww));
+            y = Math.Max(m.T, Math.Min(y, m.B - hh));
+            if (x == w.L && y == w.T) return;
+            SetWindowPos(me, IntPtr.Zero, x, y, 0, 0, 0x0001 | 0x0004 | 0x0010);
+            // posição salva acompanha o ajuste
+            var src = PresentationSource.FromVisual(this);
+            double s = src?.CompositionTarget?.TransformToDevice.M11 ?? 1;
+            App.FloatX = Left = x / s; App.FloatY = Top = y / s;
+            App.Save();
         }
 
         // Recalcula tudo do zero: mesma coisa que soltar e fixar de novo
