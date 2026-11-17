@@ -35,10 +35,15 @@ namespace MiniPlayer
             new("Claro",                 "#EEF4F5F7", "#FF1B1D22", "#991B1D22", null),
             new("Neon",                  "#E60B0F1A", "#FF00E5FF", "#AAFF4FD8", "#FF00E5FF"),
             new("Pôr do sol",            "#E62A1410", "#FFFFC27A", "#BBFF8A65", "#FFFF7A45"),
+            new("Oceano",                "#E60A2540", "#FF7FDBFF", "#AAB3E5FC", "#FF29B6F6"),
+            new("Floresta",              "#E60F2418", "#FFB9F6CA", "#AA81C784", "#FF66BB6A"),
+            new("Púrpura",               "#E62A1240", "#FFE1BEE7", "#AACE93D8", "#FFBA68C8"),
+            new("Rubi",                  "#E63A0E14", "#FFFFCDD2", "#AAEF9A9A", "#FFEF5350"),
+            new("Alto contraste",        "#FF000000", "#FFFFFF00", "#FFFFFFFF", "#FFFFFF00"),
         };
         public static ThemeDef CurrentTheme => Themes[Math.Clamp(Theme, 0, Themes.Length - 1)];
         public static void SetTheme(int i) { Theme = i; Save(); LookChanged?.Invoke(); }
-        public static void SetHidePlayer(bool on) { HidePlayer = on; Save(); LookChanged?.Invoke(); }
+        public static void SetHidePlayer(bool on) { if (on && !ShowBattery) return; HidePlayer = on; Save(); LookChanged?.Invoke(); }
         public static double FloatX = 200, FloatY = 200;
         public static List<BtBattery> Batteries = new();
         public static event Action BatteriesChanged;
@@ -129,7 +134,7 @@ namespace MiniPlayer
             (Current as App)?.Sync();
         }
         public static void SetBehind(bool on) { FloatBehind = on; Save(); }
-        public static void SetBattery(bool on) { ShowBattery = on; Save(); RefreshBatteries(); }
+        public static void SetBattery(bool on) { if (!on && HidePlayer) return; ShowBattery = on; Save(); RefreshBatteries(); }
         // Encerramento limpo: fecha janelas (solta ganchos), para a captura de áudio e garante que o processo termina
         static bool quitting;
         public static void Quit()
@@ -176,8 +181,8 @@ namespace MiniPlayer
                 }));
                 menu.Items.Add(Item("Manter atrás das janelas", () => FloatBehind, SetBehind, () => Floating));
                 menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
-                menu.Items.Add(Item("Ocultar player (só baterias)", () => HidePlayer, SetHidePlayer));
-                menu.Items.Add(Item("Mostrar bateria", () => ShowBattery, SetBattery));
+                menu.Items.Add(Item("Ocultar player (só baterias)", () => HidePlayer, SetHidePlayer, () => ShowBattery));
+                menu.Items.Add(Item("Mostrar bateria", () => ShowBattery, SetBattery, () => !HidePlayer));
                 var temas = new System.Windows.Forms.ToolStripMenuItem("Temas");
                 for (int t = 0; t < Themes.Length; t++)
                 {

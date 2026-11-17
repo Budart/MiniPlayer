@@ -244,8 +244,8 @@ namespace MiniPlayer
             m.Items.Add(Item("Soltar (arrastar livremente)", App.Floating, true, on => App.SetFloating(on, Left, Top - 60)));
             m.Items.Add(Item("Manter atrás das janelas", App.FloatBehind, App.Floating, App.SetBehind));
             m.Items.Add(new Separator());
-            m.Items.Add(Item("Ocultar player (só baterias)", App.HidePlayer, true, App.SetHidePlayer));
-            m.Items.Add(Item("Mostrar bateria", App.ShowBattery, true, App.SetBattery));
+            m.Items.Add(Item("Ocultar player (só baterias)", App.HidePlayer, App.ShowBattery, App.SetHidePlayer));
+            m.Items.Add(Item("Mostrar bateria", App.ShowBattery, !App.HidePlayer, App.SetBattery));
             var temas = new MenuItem { Header = "Temas" };
             for (int t = 0; t < App.Themes.Length; t++)
             {

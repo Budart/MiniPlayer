@@ -26,7 +26,9 @@ O MiniPlayer também fica com um ícone na bandeja do sistema (perto do relógio
 |---|---|
 | **Soltar (arrastar livremente)** | Desprende o player da barra: arraste-o para qualquer lugar da tela. A posição é lembrada. Desmarque para fixá-lo de volta na barra de tarefas. |
 | **Manter atrás das janelas** | Só no modo solto. Marcado: o player fica atrás das janelas, como um widget na área de trabalho. Desmarcado: fica acima de todas as janelas. Ao usar **Win+D** (mostrar a área de trabalho) ou sobre a barra de tarefas, ele continua visível. |
-| **Mostrar bateria** | Mostra ou esconde os indicadores de bateria. |
+| **Ocultar player (só baterias)** | Esconde os controles de mídia e deixa só os indicadores de bateria. |
+| **Temas** | 10 temas de cores (Padrão, Escuro, Claro, Neon, Pôr do sol, Oceano, Floresta, Púrpura, Rubi, Alto contraste). |
+| **Mostrar bateria** | Mostra ou esconde os indicadores de bateria. O player e a bateria não podem ficar ocultos ao mesmo tempo. |
 | **Iniciar com o Windows** | Abre o MiniPlayer automaticamente ao ligar o PC. |
 | **Fechar** | Encerra o MiniPlayer. |
 
