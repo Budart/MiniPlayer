@@ -45,42 +45,90 @@ namespace MiniPlayer
             return res;
         }
 
-        static IEnumerable<BtBattery> ReadPlayStation()
+        // Controles PlayStation: uma leitura contínua por controle (tempo real), iniciada assim que o controle aparece
+        sealed class PsReader { public bool Bt; public volatile BtBattery Last; }
+        static readonly Dictionary<string, PsReader> readers = new();
+        static bool watching;
+
+        public static void StartWatching()
         {
-            var list = new List<(BtBattery b, bool bt)>();
-            foreach (var dev in DeviceList.Local.GetHidDevices(0x054C))
+            if (watching) return; watching = true;
+            DeviceList.Local.Changed += (_, __) => { EnsureReaders(); App.Kick(); };
+            // conexão/desconexão Bluetooth instantânea
+            foreach (var sel in new[] { Windows.Devices.Bluetooth.BluetoothDevice.GetDeviceSelectorFromPairingState(true),
+                                        Windows.Devices.Bluetooth.BluetoothLEDevice.GetDeviceSelectorFromPairingState(true) })
             {
-                int pid = dev.ProductID;
-                bool ds5 = pid == 0x0CE6 || pid == 0x0DF2, ds4 = pid == 0x05C4 || pid == 0x09CC;
-                if (!ds5 && !ds4) continue;
-                try
+                var w = DeviceInformation.CreateWatcher(sel, new[] { "System.Devices.Aep.IsConnected" }, DeviceInformationKind.AssociationEndpoint);
+                w.Updated += (_, __) => App.Kick();
+                w.Removed += (_, __) => App.Kick();
+                w.Start();
+            }
+            EnsureReaders();
+        }
+
+        static void EnsureReaders()
+        {
+            try
+            {
+                foreach (var dev in DeviceList.Local.GetHidDevices(0x054C))
                 {
-                    int max = dev.GetMaxInputReportLength();
-                    bool bt = max > 64;
-                    if (!dev.TryOpen(out var s)) continue;
-                    using (s)
+                    int pid = dev.ProductID;
+                    bool ds5 = pid == 0x0CE6 || pid == 0x0DF2, ds4 = pid == 0x05C4 || pid == 0x09CC;
+                    if (!ds5 && !ds4) continue;
+                    lock (readers) { if (readers.ContainsKey(dev.DevicePath)) continue; }
+                    var r = new PsReader();
+                    lock (readers) readers[dev.DevicePath] = r;
+                    new System.Threading.Thread(() => ReadLoop(dev, ds5, r)) { IsBackground = true }.Start();
+                }
+            }
+            catch { }
+        }
+
+        static void ReadLoop(HidDevice dev, bool ds5, PsReader r)
+        {
+            try
+            {
+                int max = dev.GetMaxInputReportLength();
+                r.Bt = max > 64;
+                if (!dev.TryOpen(out var s)) return;
+                using (s)
+                {
+                    s.ReadTimeout = System.Threading.Timeout.Infinite;
+                    if (r.Bt) try { var f = new byte[ds5 ? 41 : 37]; f[0] = (byte)(ds5 ? 0x05 : 0x02); s.GetFeature(f); } catch { } // ativa relatório completo
+                    var buf = new byte[max];
+                    while (true)
                     {
-                        s.ReadTimeout = 1000;
-                        if (bt) try { var f = new byte[ds5 ? 41 : 37]; f[0] = (byte)(ds5 ? 0x05 : 0x02); s.GetFeature(f); } catch { } // ativa relatório completo
-                        var buf = new byte[max];
-                        for (int i = 0; i < 20; i++)
+                        int n = s.Read(buf, 0, buf.Length), idx;
+                        if (ds5) idx = buf[0] == 0x31 ? 54 : (buf[0] == 0x01 && !r.Bt ? 53 : -1);
+                        else idx = buf[0] == 0x11 ? 32 : (buf[0] == 0x01 && !r.Bt ? 30 : -1);
+                        if (idx < 0 || idx >= n) continue;
+                        int v = buf[idx], lvl = v & 0x0F, pct;
+                        bool chg;
+                        if (ds5)
                         {
-                            int n = s.Read(buf, 0, buf.Length), idx = -1;
-                            if (ds5) idx = buf[0] == 0x31 ? 54 : (buf[0] == 0x01 && !bt ? 53 : -1);
-                            else idx = buf[0] == 0x11 ? 32 : (buf[0] == 0x01 && !bt ? 30 : -1);
-                            if (idx < 0 || idx >= n) continue;
-                            int v = buf[idx];
-                            // DualSense: nibble alto 1=carregando, 2=cheio. DS4: bit 0x10 = cabo conectado
-                            bool chg = ds5 ? ((v >> 4) == 1 || (v >> 4) == 2) : (v & 0x10) != 0;
-                            int pct = Math.Min(100, (v & 0x0F) * 10);
-                            list.Add((new BtBattery(ds5 ? "DualSense" : "DualShock 4", pct, "\uE7FC", chg || !bt), bt));
-                            break;
+                            // o controle só informa 11 níveis (0-10); usa o meio de cada faixa, como a Steam (0 → 5%)
+                            int st = v >> 4; chg = st == 1 || st == 2;
+                            pct = st == 2 ? 100 : Math.Min(100, lvl * 10 + 5);
                         }
+                        else
+                        {
+                            chg = (v & 0x10) != 0;
+                            pct = chg ? Math.Min(100, lvl * 100 / 11) : Math.Min(100, lvl * 10 + 5);
+                        }
+                        var nb = new BtBattery(ds5 ? "DualSense" : "DualShock 4", pct, "", chg || !r.Bt);
+                        if (r.Last == null || r.Last.Percent != nb.Percent || r.Last.Charging != nb.Charging) { r.Last = nb; App.Kick(); }
                     }
                 }
-                catch { }
             }
-            // mesmo controle no Bluetooth e no cabo aparece duas vezes: para cada um via USB, descarta um via Bluetooth do mesmo modelo
+            catch { }
+            finally { lock (readers) readers.Remove(dev.DevicePath); App.Kick(); }
+        }
+
+        static IEnumerable<BtBattery> ReadPlayStation()
+        {
+            List<(BtBattery b, bool bt)> list;
+            lock (readers) list = readers.Values.Where(r => r.Last != null).Select(r => (r.Last, r.Bt)).ToList();
+            // mesmo controle no Bluetooth e no cabo: para cada um via USB, descarta um via Bluetooth do mesmo modelo
             foreach (var usb in list.Where(x => !x.bt).ToList())
             {
                 var dup = list.FirstOrDefault(x => x.bt && x.b.Name == usb.b.Name);
