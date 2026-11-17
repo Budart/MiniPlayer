@@ -233,7 +233,7 @@ namespace MiniPlayer
 
         // Desenhos vetoriais dos dispositivos (24x24); cada controle com o seu formato
         const string Body = "M7,6 C4.8,6 3.4,7.6 2.9,10 L1.6,16.6 C1.3,18.6 2.5,20 4,20 C5.2,20 6,19.2 6.8,18 L8.2,16 H15.8 L17.2,18 C18,19.2 18.8,20 20,20 C21.5,20 22.7,18.6 22.4,16.6 L21.1,10 C20.6,7.6 19.2,6 17,6 Z ";
-        static string Circ(double x, double y, double r) => $"M{x - r},{y} a{r},{r} 0 1 0 {2 * r},0 a{r},{r} 0 1 0 {-2 * r},0 ";
+        static string Circ(double x, double y, double r) => FormattableString.Invariant($"M{x - r},{y} a{r},{r} 0 1 0 {2 * r},0 a{r},{r} 0 1 0 {-2 * r},0 ");
         static readonly System.Collections.Generic.Dictionary<string, string> Icons = new()
         {
             ["ds5"] = Body + "M9,6 V10.5 H15 V6 " + Circ(9.2, 13.4, 1.3) + Circ(14.8, 13.4, 1.3) + "M4.6,10 H6.6 M5.6,9 V11 " + Circ(18.6, 10, 0.5),
