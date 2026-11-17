@@ -130,8 +130,15 @@ namespace MiniPlayer
                 int y = r.T + (r.B - r.T - hPx) / 2;
                 if (w.L != x || w.T != y) SetWindowPos(me, IntPtr.Zero, x, y, 0, 0, 0x0001 | 0x0004 | 0x0010);
             }
-            if (!menuOpen && !fullscreen)
-                SetWindowPos(new WindowInteropHelper(this).Handle, new IntPtr(-1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010);
+            if (!menuOpen && !fullscreen) ApplyZ();
+        }
+
+        // Camada da janela: acima de tudo (padrão) ou, no modo solto, opcionalmente atrás de todas as janelas
+        void ApplyZ()
+        {
+            bool behind = App.Floating && App.FloatBehind;
+            if (Topmost == behind) Topmost = !behind;
+            SetWindowPos(new WindowInteropHelper(this).Handle, new IntPtr(behind ? 1 : -1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010);
         }
 
         // Monitor sem bandeja: acha (via acessibilidade) o item mais à esquerda do grupo da direita (relógio etc.)
@@ -181,8 +188,8 @@ namespace MiniPlayer
             if (fs && !App.Floating && MonitorFromWindow(fg, 2) != MonitorFromWindow(bar, 2)) fs = false;
             if (fs == fullscreen) return;
             fullscreen = fs;
-            SetWindowPos(me, new IntPtr(fs ? -2 : -1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010);
-            if (fs) SetWindowPos(me, fg, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010); // logo atrás da janela cheia
+            if (fs) { Topmost = false; SetWindowPos(me, new IntPtr(-2), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010); SetWindowPos(me, fg, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010); } // atrás da janela cheia
+            else ApplyZ();
             Visibility = fs ? Visibility.Hidden : Visibility.Visible;
         }
 
@@ -193,13 +200,15 @@ namespace MiniPlayer
             var auto = new MenuItem { Header = "Iniciar com o Windows", IsCheckable = true, IsChecked = File.Exists(startup) };
             auto.Click += (_, __) => ToggleStartup(startup, auto.IsChecked);
             var free = new MenuItem { Header = "Soltar (arrastar livremente)", IsCheckable = true, IsChecked = App.Floating };
-            free.Click += (_, __) => { App.Floating = free.IsChecked; if (App.Floating) { App.FloatX = Left; App.FloatY = Top - 60; } App.Save(); };
-            m.Items.Add(free);
+            free.Click += (_, __) => { App.Floating = free.IsChecked; if (App.Floating) { App.FloatX = Left; App.FloatY = Top - 60; } App.Save(); ApplyZ(); };
+            var behind = new MenuItem { Header = "Manter atrás das janelas", IsCheckable = true, IsChecked = App.FloatBehind, IsEnabled = App.Floating,
+                ToolTip = "Disponível no modo solto. Desmarcado: fica acima de todas as janelas." };
+            behind.Click += (_, __) => { App.FloatBehind = behind.IsChecked; App.Save(); ApplyZ(); };
             var bat = new MenuItem { Header = "Mostrar bateria Bluetooth", IsCheckable = true, IsChecked = App.ShowBattery };
             bat.Click += (_, __) => { App.ShowBattery = bat.IsChecked; App.Save(); App.RefreshBatteries(); };
             var quit = new MenuItem { Header = "Fechar" };
             quit.Click += (_, __) => Application.Current.Shutdown();
-            m.Items.Add(bat); m.Items.Add(auto); m.Items.Add(quit);
+            m.Items.Add(free); m.Items.Add(behind); m.Items.Add(new Separator()); m.Items.Add(bat); m.Items.Add(auto); m.Items.Add(new Separator()); m.Items.Add(quit);
             m.Opened += (_, __) => menuOpen = true;
             m.Opened += (_, __) => HookMouse();
             m.Closed += (_, __) => { menuOpen = false; UnhookMouse(); };
