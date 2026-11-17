@@ -137,17 +137,20 @@ namespace MiniPlayer
             return list.Select(x => x.b);
         }
 
-        // Ícone pelo nome do dispositivo
+        // Tipo de ícone pelo nome do dispositivo
         static string Glyph(string n)
         {
             n = (n ?? "").ToLowerInvariant();
-            if (new[] { "controller", "dualsense", "dualshock", "xbox", "gamepad", "playstation", "joy-con", "8bitdo" }.Any(n.Contains)) return "";
-            if (new[] { "buds", "head", "fone", "airpods", "ear", "wh-", "wf-", "jbl", "headset", "tws", "soundcore", "audio", "qc", "beats" }.Any(n.Contains)) return "";
-            if (new[] { "speaker", "caixa", "soundlink" }.Any(n.Contains)) return "";
-            if (new[] { "keyboard", "teclado", "keys", "k380", "k780" }.Any(n.Contains)) return "";
-            if (new[] { "mouse", "mx master", "mx anywhere", "trackpad", "m720", "m590" }.Any(n.Contains)) return "";
-            if (n.Contains("pen") || n.Contains("caneta")) return "";
-            return "";
+            if (n.Contains("dualsense")) return "ds5";
+            if (n.Contains("dualshock") || n.Contains("wireless controller")) return "ds4";
+            if (n.Contains("xbox")) return "xbox";
+            if (new[] { "controller", "gamepad", "playstation", "joy-con", "8bitdo", "pro controller" }.Any(n.Contains)) return "pad";
+            if (new[] { "buds", "airpods", "tws", "earbud", "freebuds", "wf-", "galaxy buds", "soundcore liberty" }.Any(n.Contains)) return "buds";
+            if (new[] { "head", "fone", "wh-", "jbl", "headset", "soundcore", "audio", "qc", "beats", "ear" }.Any(n.Contains)) return "head";
+            if (new[] { "speaker", "caixa", "soundlink", "flip", "charge" }.Any(n.Contains)) return "spk";
+            if (new[] { "keyboard", "teclado", "keys", "k380", "k780" }.Any(n.Contains)) return "kbd";
+            if (new[] { "mouse", "mx master", "mx anywhere", "trackpad", "m720", "m590" }.Any(n.Contains)) return "mouse";
+            return "bt";
         }
     }
 }

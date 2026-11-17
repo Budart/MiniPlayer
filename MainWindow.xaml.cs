@@ -214,20 +214,39 @@ namespace MiniPlayer
             if (!App.ShowBattery) return;
             foreach (var b in App.Batteries)
             {
-                // ícone em cima, % embaixo (centralizados); raio branco colado à direita, sem deslocar o alinhamento
-                var col = new StackPanel { Orientation = Orientation.Vertical, HorizontalAlignment = HorizontalAlignment.Center };
-                col.Children.Add(new TextBlock { Text = b.Glyph, FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 14, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center });
+                // coluna 1: desenho + % (centralizados); coluna 2: raio, centralizado na altura, colado
+                var col = new StackPanel { Orientation = Orientation.Vertical, VerticalAlignment = VerticalAlignment.Center };
+                col.Children.Add(new System.Windows.Shapes.Path { Data = Geometry.Parse(Icons.TryGetValue(b.Glyph, out var g) ? g : Icons["bt"]), Stroke = Brushes.White, StrokeThickness = 1.4,
+                    StrokeLineJoin = PenLineJoin.Round, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round,
+                    Width = 22, Height = 16, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Center, SnapsToDevicePixels = true });
                 col.Children.Add(new TextBlock { Text = b.Percent + "%", FontSize = 10, HorizontalAlignment = HorizontalAlignment.Center,
                     Foreground = b.Percent <= 20 && !b.Charging ? Brushes.OrangeRed : Brushes.White });
-                var sp = new Grid { Margin = new Thickness(8, 0, b.Charging ? 6 : 0, 0), VerticalAlignment = VerticalAlignment.Center, Background = Brushes.Transparent,
+                var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Background = Brushes.Transparent,
                     ToolTip = $"{b.Name}: {b.Percent}%" + (b.Charging ? " (carregando)" : "") };
                 sp.Children.Add(col);
                 if (b.Charging)
-                    sp.Children.Add(new TextBlock { Text = "", FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 9, Foreground = Brushes.White,
-                        HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, -7, 0) });
+                    sp.Children.Add(new System.Windows.Shapes.Path { Data = Geometry.Parse("M6,0 L1,7 H4.5 L3,12 L9,4.5 H5.5 Z"), Fill = Brushes.White,
+                        Width = 6, Height = 10, Stretch = Stretch.Uniform, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(2, 0, 0, 0) });
                 BatteryPanel.Children.Add(sp);
             }
         });
+
+        // Desenhos vetoriais dos dispositivos (24x24); cada controle com o seu formato
+        const string Body = "M7,6 C4.8,6 3.4,7.6 2.9,10 L1.6,16.6 C1.3,18.6 2.5,20 4,20 C5.2,20 6,19.2 6.8,18 L8.2,16 H15.8 L17.2,18 C18,19.2 18.8,20 20,20 C21.5,20 22.7,18.6 22.4,16.6 L21.1,10 C20.6,7.6 19.2,6 17,6 Z ";
+        static string Circ(double x, double y, double r) => $"M{x - r},{y} a{r},{r} 0 1 0 {2 * r},0 a{r},{r} 0 1 0 {-2 * r},0 ";
+        static readonly System.Collections.Generic.Dictionary<string, string> Icons = new()
+        {
+            ["ds5"] = Body + "M9,6 V10.5 H15 V6 " + Circ(9.2, 13.4, 1.3) + Circ(14.8, 13.4, 1.3) + "M4.6,10 H6.6 M5.6,9 V11 " + Circ(18.6, 10, 0.5),
+            ["ds4"] = Body + "M8.6,6 V10 H15.4 V6 M9.4,6.9 H14.6 " + Circ(8.8, 13.4, 1.3) + Circ(15.2, 13.4, 1.3) + "M4.6,10 H6.6 M5.6,9 V11 " + Circ(18.6, 10, 0.5),
+            ["xbox"] = "M6.5,7 C4.3,7 3.2,8.6 2.7,10.6 L1.6,16 C1.2,18.4 2.6,20 4.2,20 C5.6,20 6.3,18.8 7.3,17.6 L8.4,16.4 H15.6 L16.7,17.6 C17.7,18.8 18.4,20 19.8,20 C21.4,20 22.8,18.4 22.4,16 L21.3,10.6 C20.8,8.6 19.7,7 17.5,7 C15.6,7 14.6,8 12,8 C9.4,8 8.4,7 6.5,7 Z " + Circ(6.6, 11, 1.4) + Circ(14.6, 14.2, 1.3) + Circ(12, 10.6, 1) + "M8,14.2 H10.4 M9.2,13 V15.4 " + Circ(18, 11, 0.5),
+            ["pad"] = Body + "M5,12 H8 M6.5,10.5 V13.5 " + Circ(17, 11, 0.6) + Circ(18.6, 12.6, 0.6) + Circ(15.4, 12.6, 0.6) + Circ(17, 14.2, 0.6),
+            ["head"] = "M4,15 V12 A8,8 0 0 1 20,12 V15 M3,14 H6.5 V20 H4.5 A1.5,1.5 0 0 1 3,18.5 Z M21,14 H17.5 V20 H19.5 A1.5,1.5 0 0 0 21,18.5 Z",
+            ["buds"] = Circ(7, 9, 3) + "M8.5,11.6 V19 H6.5 V11.9 " + Circ(17, 9, 3) + "M15.5,11.6 V19 H17.5 V11.9",
+            ["spk"] = "M6,3 H18 A1.5,1.5 0 0 1 19.5,4.5 V19.5 A1.5,1.5 0 0 1 18,21 H6 A1.5,1.5 0 0 1 4.5,19.5 V4.5 A1.5,1.5 0 0 1 6,3 Z " + Circ(12, 14.5, 3.5) + Circ(12, 7.5, 1.3),
+            ["kbd"] = "M3,6 H21 A1.5,1.5 0 0 1 22.5,7.5 V16.5 A1.5,1.5 0 0 1 21,18 H3 A1.5,1.5 0 0 1 1.5,16.5 V7.5 A1.5,1.5 0 0 1 3,6 Z M5,9.5 H6 M8,9.5 H9 M11,9.5 H12 M14,9.5 H15 M17,9.5 H19 M5,12.5 H6.5 M9,12.5 H10 M12,12.5 H13 M15.5,12.5 H19 M7.5,15 H16.5",
+            ["mouse"] = "M12,2.5 C8,2.5 6,5.5 6,9 V15 C6,18.8 8.6,21.5 12,21.5 C15.4,21.5 18,18.8 18,15 V9 C18,5.5 16,2.5 12,2.5 Z M6,10 H18 M12,2.5 V10 M12,5 V7.5",
+            ["bt"] = "M7,7.5 L17,16.5 L12,21 V3 L17,7.5 L7,16.5",
+        };
 
         // Barras do espectro atrás dos botões, na cor predominante da capa
         readonly SolidColorBrush accent = new(Colors.White);
