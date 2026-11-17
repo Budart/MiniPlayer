@@ -26,16 +26,19 @@ namespace MiniPlayer
         public static List<BtBattery> Batteries = new();
         public static event Action BatteriesChanged;
         static TaskCompletionSource<bool> kick = new();
+        public static void Kick() => kick.TrySetResult(true);
         public static void RefreshBatteries() { BatteriesChanged?.Invoke(); kick.TrySetResult(true); }
 
         // Lê baterias Bluetooth em segundo plano a cada 60s (ou quando a opção é ligada)
         static async void BatteryLoop()
         {
+            try { BatteryReader.StartWatching(); } catch { }
             while (true)
             {
-                if (ShowBattery) { try { Batteries = await Task.Run(BatteryReader.ReadAll); } catch { } BatteriesChanged?.Invoke(); }
                 kick = new();
-                await Task.WhenAny(Task.Delay(60000), kick.Task);
+                if (ShowBattery) { try { Batteries = await Task.Run(BatteryReader.ReadAll); } catch { } BatteriesChanged?.Invoke(); }
+                await Task.WhenAny(Task.Delay(15000), kick.Task);
+                await Task.Delay(300); // agrupa eventos seguidos
             }
         }
         public static bool Centered => (Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced", "TaskbarAl", 1) as int? ?? 1) != 0;
