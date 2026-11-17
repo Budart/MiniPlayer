@@ -234,12 +234,11 @@ namespace MiniPlayer
         // Desenhos vetoriais dos dispositivos (24x24); cada controle com o seu formato
         const string Body = "M7,6 C4.8,6 3.4,7.6 2.9,10 L1.6,16.6 C1.3,18.6 2.5,20 4,20 C5.2,20 6,19.2 6.8,18 L8.2,16 H15.8 L17.2,18 C18,19.2 18.8,20 20,20 C21.5,20 22.7,18.6 22.4,16.6 L21.1,10 C20.6,7.6 19.2,6 17,6 Z ";
         static string Circ(double x, double y, double r) => FormattableString.Invariant($"M{x - r},{y} a{r},{r} 0 1 0 {2 * r},0 a{r},{r} 0 1 0 {-2 * r},0 ");
+        // joystick genérico: corpo com pegadores, direcional, 4 botões e 2 analógicos
+        static readonly string Pad = Body + "M4.8,11 H7.8 M6.3,9.5 V12.5 " + Circ(17.3, 9.6, 0.55) + Circ(18.9, 11.1, 0.55) + Circ(15.7, 11.1, 0.55) + Circ(17.3, 12.6, 0.55) + Circ(9.4, 14.2, 1.3) + Circ(14.6, 14.2, 1.3);
         static readonly System.Collections.Generic.Dictionary<string, string> Icons = new()
         {
-            ["ds5"] = Body + "M9,6 V10.5 H15 V6 " + Circ(9.2, 13.4, 1.3) + Circ(14.8, 13.4, 1.3) + "M4.6,10 H6.6 M5.6,9 V11 " + Circ(18.6, 10, 0.5),
-            ["ds4"] = Body + "M8.6,6 V10 H15.4 V6 M9.4,6.9 H14.6 " + Circ(8.8, 13.4, 1.3) + Circ(15.2, 13.4, 1.3) + "M4.6,10 H6.6 M5.6,9 V11 " + Circ(18.6, 10, 0.5),
-            ["xbox"] = "M6.5,7 C4.3,7 3.2,8.6 2.7,10.6 L1.6,16 C1.2,18.4 2.6,20 4.2,20 C5.6,20 6.3,18.8 7.3,17.6 L8.4,16.4 H15.6 L16.7,17.6 C17.7,18.8 18.4,20 19.8,20 C21.4,20 22.8,18.4 22.4,16 L21.3,10.6 C20.8,8.6 19.7,7 17.5,7 C15.6,7 14.6,8 12,8 C9.4,8 8.4,7 6.5,7 Z " + Circ(6.6, 11, 1.4) + Circ(14.6, 14.2, 1.3) + Circ(12, 10.6, 1) + "M8,14.2 H10.4 M9.2,13 V15.4 " + Circ(18, 11, 0.5),
-            ["pad"] = Body + "M5,12 H8 M6.5,10.5 V13.5 " + Circ(17, 11, 0.6) + Circ(18.6, 12.6, 0.6) + Circ(15.4, 12.6, 0.6) + Circ(17, 14.2, 0.6),
+            ["pad"] = Pad, ["ds5"] = Pad, ["ds4"] = Pad, ["xbox"] = Pad,
             ["head"] = "M4,15 V12 A8,8 0 0 1 20,12 V15 M3,14 H6.5 V20 H4.5 A1.5,1.5 0 0 1 3,18.5 Z M21,14 H17.5 V20 H19.5 A1.5,1.5 0 0 0 21,18.5 Z",
             ["buds"] = Circ(7, 9, 3) + "M8.5,11.6 V19 H6.5 V11.9 " + Circ(17, 9, 3) + "M15.5,11.6 V19 H17.5 V11.9",
             ["spk"] = "M6,3 H18 A1.5,1.5 0 0 1 19.5,4.5 V19.5 A1.5,1.5 0 0 1 18,21 H6 A1.5,1.5 0 0 1 4.5,19.5 V4.5 A1.5,1.5 0 0 1 6,3 Z " + Circ(12, 14.5, 3.5) + Circ(12, 7.5, 1.3),
