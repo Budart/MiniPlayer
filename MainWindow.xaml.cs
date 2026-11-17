@@ -71,6 +71,26 @@ namespace MiniPlayer
         bool dragging, pending;
         [DllImport("user32.dll")] static extern bool UnhookWinEvent(IntPtr h);
         [DllImport("user32.dll")] static extern uint GetDpiForWindow(IntPtr h);
+        [DllImport("user32.dll")] static extern bool PostMessage(IntPtr h, uint msg, IntPtr wp, IntPtr lp);
+        delegate bool EnumChildProc(IntPtr h, IntPtr p);
+        [DllImport("user32.dll")] static extern bool EnumChildWindows(IntPtr parent, EnumChildProc f, IntPtr p);
+
+        // O player fica por cima da barra de tarefas. Se o mouse vem de um ícone da barra para o player,
+        // a barra não percebe que o mouse saiu e deixa o realce ("brilho") do ícone aceso por baixo do player,
+        // visível através do fundo transparente. Aqui avisamos a barra (e suas partes internas) que o mouse saiu.
+        static readonly EnumChildProc leaveChild = (h, p) => { PostMessage(h, 0x02A3 /*WM_MOUSELEAVE*/, IntPtr.Zero, IntPtr.Zero); return true; };
+        DateTime lastUnhot;
+        void ClearTaskbarHover()
+        {
+            if ((DateTime.Now - lastUnhot).TotalMilliseconds < 150) return;
+            lastUnhot = DateTime.Now;
+            try
+            {
+                PostMessage(bar, 0x02A3, IntPtr.Zero, IntPtr.Zero);
+                EnumChildWindows(bar, leaveChild, IntPtr.Zero);
+            }
+            catch { }
+        }
 
         public MainWindow(IntPtr taskbar, bool primary)
         {
@@ -91,6 +111,8 @@ namespace MiniPlayer
             Loaded += (_, __) => ApplyLook();
             Closed += (_, __) => App.BatteriesChanged -= UpdateBatteries;
             Root.MouseRightButtonUp += (_, __) => ShowMenu();
+            MouseEnter += (_, __) => ClearTaskbarHover();
+            MouseMove += (_, __) => ClearTaskbarHover();
             Root.MouseLeftButtonDown += (s, e) =>
             {
                 if (!App.Floating || e.OriginalSource is Button) return;
