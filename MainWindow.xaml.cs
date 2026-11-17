@@ -70,11 +70,19 @@ namespace MiniPlayer
         Mgr mgr; GlobalSystemMediaTransportControlsSession session;
         bool dragging, pending;
         [DllImport("user32.dll")] static extern bool UnhookWinEvent(IntPtr h);
+        [DllImport("user32.dll")] static extern uint GetDpiForWindow(IntPtr h);
 
         public MainWindow(IntPtr taskbar, bool primary)
         {
             bar = taskbar; isPrimary = primary;
             InitializeComponent();
+            // antes de exibir: verifica a orientação da barra e já monta o layout certo (vertical/horizontal)
+            if (!App.Floating && GetWindowRect(bar, out var br) && (br.B - br.T) > (br.R - br.L))
+            {
+                double dpi = GetDpiForWindow(bar); double sc = dpi > 0 ? dpi / 96.0 : 1;
+                SetVertical(true, (br.R - br.L) / sc);
+                Left = br.L / sc; Top = br.T / sc + 8;
+            }
             Loaded += async (_, __) => { Setup(); SetupSpectrum(); UpdateBatteries(); await InitMedia(); };
             App.BatteriesChanged += UpdateBatteries;
             App.LookChanged += ApplyLook;
@@ -95,6 +103,13 @@ namespace MiniPlayer
             var h = new WindowInteropHelper(this).Handle;
             SetWindowLong(h, -20, GetWindowLong(h, -20) | 0x80 | 0x08000000); // toolwindow + noactivate
             Place();
+            // na abertura (e ao ligar o PC a barra pode terminar de se ajustar depois): refaz layout e posição algumas vezes
+            foreach (var ms in new[] { 300, 1500, 4000, 10000 })
+            {
+                var once = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(ms) };
+                once.Tick += (_, __) => { once.Stop(); Relayout(); };
+                once.Start();
+            }
             // reage na hora quando outra janela (ex: a barra) vem pra frente
             hookProc = (a, ev, hw, o, c, t2, ms) => pending = true;
             var h1 = SetWinEventHook(0x0003, 0x0003, IntPtr.Zero, hookProc, 0, 0, 0);       // foco mudou
@@ -125,6 +140,8 @@ namespace MiniPlayer
                 if ((r.B - r.T) > (r.R - r.L))
                 {
                     SetVertical(true, (r.R - r.L) / s);
+                    UpdateLayout();
+                    GetWindowRect(me, out w);
                     int vh = w.B - w.T, vy;
                     if (App.Centered) vy = r.T + (int)(8 * s);
                     else
@@ -179,6 +196,18 @@ namespace MiniPlayer
             bool behind = App.Floating && App.FloatBehind && !OverTaskbar() && !DesktopInFront();
             if (Topmost == behind) Topmost = !behind;
             SetWindowPos(new WindowInteropHelper(this).Handle, new IntPtr(behind ? 1 : -1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010);
+        }
+
+        // Recalcula tudo do zero: mesma coisa que soltar e fixar de novo
+        void Relayout()
+        {
+            if (dragging || menuOpen) return;
+            vertical = !vertical; // força SetVertical a reaplicar o layout atual
+            SetVertical(!vertical, vWidth);
+            UpdateLayout();
+            Place();
+            UpdateLayout();
+            Place();
         }
 
         // Troca entre layout horizontal (barra embaixo/em cima) e vertical (barra na lateral)
@@ -380,6 +409,7 @@ namespace MiniPlayer
                 Spectrum.Children.Add(new Rectangle { Fill = App.CurrentTheme.Spectrum != null ? B(App.CurrentTheme.Spectrum) : accent, Margin = new Thickness(1, 0, 1, 0), RadiusX = 1, RadiusY = 1,
                     RenderTransformOrigin = new Point(0.5, 1), RenderTransform = scales[i] });
             }
+            if (vertical) for (int i = 1; i < Spectrum.Children.Count; i += 2) Spectrum.Children[i].Visibility = Visibility.Collapsed;
             bool idle = true;
             var t = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(33) };
             t.Tick += (_, __) =>
