@@ -15,6 +15,7 @@ namespace MiniPlayer
     {
         const string BattKey = "{104EA319-6EE2-4701-BD47-8DDBF425BBE5} 2";
         const string ContainerKey = "System.Devices.ContainerId";
+        const string HwKey = "System.Devices.HardwareIds";
 
         public static async Task<List<BtBattery>> ReadAll()
         {
@@ -22,7 +23,7 @@ namespace MiniPlayer
             var seen = new HashSet<string>();
             try
             {
-                var devs = await DeviceInformation.FindAllAsync("", new[] { BattKey, ContainerKey }, DeviceInformationKind.Device);
+                var devs = await DeviceInformation.FindAllAsync("", new[] { BattKey, ContainerKey, HwKey }, DeviceInformationKind.Device);
                 foreach (var d in devs)
                 {
                     if (!d.Properties.TryGetValue(BattKey, out var b) || b == null) continue;
@@ -37,12 +38,17 @@ namespace MiniPlayer
                         if (!string.IsNullOrEmpty(ct.Name)) name = ct.Name;
                     }
                     catch { }
-                    res.Add(new BtBattery(name, Math.Clamp(pct, 0, 100), Glyph(name)));
+                    var ids = d.Properties.TryGetValue(HwKey, out var h) && h is string[] arr ? string.Join(";", arr).ToLowerInvariant() : "";
+                    string kind = KindFromIds(ids) ?? Kind(name, "bt");
+                    // controle PlayStation já lido direto (mais preciso e em tempo real): não repete
+                    if ((kind == "ds5" || kind == "ds4") && PsActive(kind)) continue;
+                    res.Add(new BtBattery(name, Math.Clamp(pct, 0, 100), kind));
                 }
             }
             catch { }
             try { res.AddRange(ReadPlayStation()); } catch { }
-            return res;
+            try { res.AddRange(Protocols.ReadAll()); } catch { }
+            return res.GroupBy(x => x.Name.ToLowerInvariant()).Select(g => g.First()).ToList();
         }
 
         // Controles PlayStation: uma leitura contínua por controle (tempo real), iniciada assim que o controle aparece
@@ -137,14 +143,34 @@ namespace MiniPlayer
             return list.Select(x => x.b);
         }
 
-        // Tipo de ícone pelo nome do dispositivo
+        static bool PsActive(string kind)
+        {
+            lock (readers) return readers.Values.Any(r => r.Last != null && r.Last.Glyph == kind);
+        }
+
+        // Modelo pelo ID de hardware (VID/PID), independente do nome/idioma
+        static string KindFromIds(string ids)
+        {
+            if (ids.Contains("054c"))
+                return ids.Contains("0ce6") || ids.Contains("0df2") ? "ds5" : ids.Contains("05c4") || ids.Contains("09cc") ? "ds4" : "pad";
+            if (ids.Contains("057e")) return "pad";
+            if (ids.Contains("045e") && new[] { "02e0", "02fd", "0b05", "0b12", "0b13", "0b20", "0b22" }.Any(ids.Contains)) return "xbox";
+            return null;
+        }
+
+        // Tipo de ícone pelo nome do dispositivo (PT e EN)
+        public static string Kind(string n, string fallback)
+        {
+            var k = Glyph(n); return k == "bt" ? fallback : k;
+        }
+
         static string Glyph(string n)
         {
             n = (n ?? "").ToLowerInvariant();
             if (n.Contains("dualsense")) return "ds5";
             if (n.Contains("dualshock") || n.Contains("wireless controller")) return "ds4";
             if (n.Contains("xbox")) return "xbox";
-            if (new[] { "controller", "gamepad", "playstation", "joy-con", "8bitdo", "pro controller" }.Any(n.Contains)) return "pad";
+            if (new[] { "controller", "controle", "controlador", "gamepad", "playstation", "joy-con", "8bitdo", "pro controller" }.Any(n.Contains)) return "pad";
             if (new[] { "buds", "airpods", "tws", "earbud", "freebuds", "wf-", "galaxy buds", "soundcore liberty" }.Any(n.Contains)) return "buds";
             if (new[] { "head", "fone", "wh-", "jbl", "headset", "soundcore", "audio", "qc", "beats", "ear" }.Any(n.Contains)) return "head";
             if (new[] { "speaker", "caixa", "soundlink", "flip", "charge" }.Any(n.Contains)) return "spk";
