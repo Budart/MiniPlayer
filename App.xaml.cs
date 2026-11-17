@@ -58,8 +58,16 @@ namespace MiniPlayer
 
         readonly Dictionary<IntPtr, MainWindow> players = new();
 
+        static System.Threading.Mutex single;
         void OnStartup(object s, StartupEventArgs e)
         {
+            // uma única instância (evita dois players/ícones se for aberto duas vezes)
+            single = new System.Threading.Mutex(true, @"Local\MiniPlayer.SingleInstance", out bool first);
+            if (!first) { Shutdown(); return; }
+            // nenhum erro inesperado derruba o app (ex.: serviços do Windows ainda iniciando logo após ligar o PC)
+            DispatcherUnhandledException += (_, ev) => ev.Handled = true;
+            TaskScheduler.UnobservedTaskException += (_, ev) => ev.SetObserved();
+            FixStartupEntry();
             try { var p = File.ReadAllText(Cfg).Split(';'); Floating = p[0] == "1"; FloatX = double.Parse(p[1], CultureInfo.InvariantCulture); FloatY = double.Parse(p[2], CultureInfo.InvariantCulture); if (p.Length > 3) ShowBattery = p[3] == "1"; if (p.Length > 4) FloatBehind = p[4] == "1"; if (p.Length > 5) HidePlayer = p[5] == "1"; if (p.Length > 6) Theme = int.Parse(p[6]); if (p.Length > 7) FloatVertical = p[7] == "1"; } catch { }
             Sync();
             SetupTray();
@@ -124,8 +132,28 @@ namespace MiniPlayer
         }
 
         // ---- Ações das opções (usadas pelo menu do player e pelo ícone da bandeja) ----
+        // Inicialização com o Windows pela chave "Run" do usuário (mais confiável que atalho na pasta Inicializar:
+        // não depende do Windows Script Host, que alguns antivírus/empresas bloqueiam, e é atualizada se o exe mudar de lugar)
+        const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
+        const string ApprovedKey = @"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run";
+        const string RunName = "MiniPlayer";
         static readonly string StartupLnk = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup), "MiniPlayer.lnk");
-        public static bool StartsWithWindows => File.Exists(StartupLnk);
+        static string RunCommand => "\"" + Environment.ProcessPath + "\"";
+        public static bool StartsWithWindows
+        {
+            get
+            {
+                try
+                {
+                    using var k = Registry.CurrentUser.OpenSubKey(RunKey);
+                    if (k?.GetValue(RunName) == null) return false;
+                    // desativado no Gerenciador de Tarefas (aba Inicializar) também conta como desligado
+                    using var a = Registry.CurrentUser.OpenSubKey(ApprovedKey);
+                    return !(a?.GetValue(RunName) is byte[] b && b.Length > 0 && (b[0] & 1) == 1);
+                }
+                catch { return false; }
+            }
+        }
 
         public static void SetFloating(bool on, double x, double y)
         {
@@ -149,15 +177,33 @@ namespace MiniPlayer
             Environment.Exit(0);
         }
 
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern bool DeleteFile(string path);
         public static void SetStartup(bool on)
         {
             try
             {
-                if (!on) { File.Delete(StartupLnk); return; }
-                var exe = Environment.ProcessPath;
-                var sh = Activator.CreateInstance(Type.GetTypeFromProgID("WScript.Shell"));
-                dynamic sc = sh.GetType().InvokeMember("CreateShortcut", System.Reflection.BindingFlags.InvokeMethod, null, sh, new object[] { StartupLnk });
-                sc.TargetPath = exe; sc.WorkingDirectory = Path.GetDirectoryName(exe); sc.Save();
+                try { if (File.Exists(StartupLnk)) File.Delete(StartupLnk); } catch { } // remove o atalho das versões antigas
+                using var k = Registry.CurrentUser.CreateSubKey(RunKey);
+                using var a = Registry.CurrentUser.CreateSubKey(ApprovedKey);
+                if (!on) { k.DeleteValue(RunName, false); a.DeleteValue(RunName, false); return; }
+                k.SetValue(RunName, RunCommand);
+                a.SetValue(RunName, new byte[] { 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, RegistryValueKind.Binary); // "habilitado"
+                // exe baixado da internet: tira a marca "veio da internet" para o Windows não pedir confirmação silenciosa no logon
+                DeleteFile(Environment.ProcessPath + ":Zone.Identifier");
+            }
+            catch { }
+        }
+
+        // Ao abrir: migra o atalho antigo e corrige o caminho se o exe foi movido/renomeado
+        static void FixStartupEntry()
+        {
+            try
+            {
+                bool hadLnk = File.Exists(StartupLnk);
+                using var k = Registry.CurrentUser.OpenSubKey(RunKey);
+                var cur = k?.GetValue(RunName) as string;
+                if (hadLnk || (cur != null && !string.Equals(cur, RunCommand, StringComparison.OrdinalIgnoreCase)))
+                    SetStartup(true);
             }
             catch { }
         }

@@ -33,30 +33,30 @@ namespace MiniPlayer
             for (int i = 0; i < App.Themes.Length; i++)
             {
                 int idx = i;
-                temas.Add(new() { Text = App.Themes[i].Name, Checked = () => App.Theme == idx, Click = () => App.SetTheme(idx) });
+                temas.Add(new() { Text = L.S("t" + i), Checked = () => App.Theme == idx, Click = () => App.SetTheme(idx) });
             }
 
             return new()
             {
-                new() { Text = "Posição", Children = new()
+                new() { Text = L.S("pos"), Children = new()
                 {
-                    new() { Text = "Fixo na barra de tarefas", Checked = () => !App.Floating, Click = () => Float(false) },
-                    new() { Text = "Solto na tela (arrastar)", Checked = () => App.Floating,  Click = () => Float(true) },
+                    new() { Text = L.S("fixed"), Checked = () => !App.Floating, Click = () => Float(false) },
+                    new() { Text = L.S("float"), Checked = () => App.Floating,  Click = () => Float(true) },
                     MenuNode.Sep,
-                    new() { Text = "Layout vertical (solto)",     Checked = () => App.FloatVertical, Enabled = () => App.Floating, Click = () => App.SetFloatVertical(!App.FloatVertical) },
-                    new() { Text = "Atrás das janelas (solto)",   Checked = () => App.FloatBehind,   Enabled = () => App.Floating, Click = () => App.SetBehind(!App.FloatBehind) },
+                    new() { Text = L.S("vert"),     Checked = () => App.FloatVertical, Enabled = () => App.Floating, Click = () => App.SetFloatVertical(!App.FloatVertical) },
+                    new() { Text = L.S("behind"),   Checked = () => App.FloatBehind,   Enabled = () => App.Floating, Click = () => App.SetBehind(!App.FloatBehind) },
                 }},
-                new() { Text = "Exibir", Children = new()
+                new() { Text = L.S("show"), Children = new()
                 {
                     // um dos dois sempre fica visível: o que estiver sozinho não pode ser desmarcado
-                    new() { Text = "Controles de mídia", Checked = () => !App.HidePlayer, Enabled = () => App.HidePlayer || App.ShowBattery, Click = () => App.SetHidePlayer(!App.HidePlayer) },
-                    new() { Text = "Bateria dos dispositivos", Checked = () => App.ShowBattery, Enabled = () => !App.ShowBattery || !App.HidePlayer, Click = () => App.SetBattery(!App.ShowBattery) },
+                    new() { Text = L.S("media"), Checked = () => !App.HidePlayer, Enabled = () => App.HidePlayer || App.ShowBattery, Click = () => App.SetHidePlayer(!App.HidePlayer) },
+                    new() { Text = L.S("battery"), Checked = () => App.ShowBattery, Enabled = () => !App.ShowBattery || !App.HidePlayer, Click = () => App.SetBattery(!App.ShowBattery) },
                 }},
-                new() { Text = "Tema", Children = temas },
+                new() { Text = L.S("theme"), Children = temas },
                 MenuNode.Sep,
-                new() { Text = "Iniciar com o Windows", Checked = () => App.StartsWithWindows, Click = () => App.SetStartup(!App.StartsWithWindows) },
+                new() { Text = L.S("startup"), Checked = () => App.StartsWithWindows, Click = () => App.SetStartup(!App.StartsWithWindows) },
                 MenuNode.Sep,
-                new() { Text = "Encerrar MiniPlayer", Click = App.Quit },
+                new() { Text = L.S("quit"), Click = App.Quit },
             };
         }
 

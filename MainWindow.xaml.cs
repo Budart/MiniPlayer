@@ -96,6 +96,7 @@ namespace MiniPlayer
         {
             bar = taskbar; isPrimary = primary;
             InitializeComponent();
+            TitleText.Text = L.S("nothing");
             // antes de exibir: verifica a orientação da barra e já monta o layout certo (vertical/horizontal)
             if (!App.Floating && GetWindowRect(bar, out var br) && (br.B - br.T) > (br.R - br.L))
             {
@@ -397,7 +398,7 @@ namespace MiniPlayer
                 col.Children.Add(new TextBlock { Text = b.Percent < 0 ? "--" : b.Percent + "%", FontSize = 10, HorizontalAlignment = HorizontalAlignment.Center,
                     Foreground = b.Percent >= 0 && b.Percent <= 20 && !b.Charging ? Brushes.OrangeRed : fg });
                 var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = vertical ? new Thickness(0, 6, 0, 0) : new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, Background = Brushes.Transparent,
-                    ToolTip = b.Percent < 0 ? $"{b.Name}: conectado (o aparelho não informa a bateria)" : $"{b.Name}: {b.Percent}%" + (b.Charging ? " (carregando)" : "") };
+                    ToolTip = b.Percent < 0 ? $"{b.Name}: {L.S("nobatt")}" : $"{b.Name}: {b.Percent}%" + (b.Charging ? $" ({L.S("charging")})" : "") };
                 sp.Children.Add(col);
                 if (b.Charging)
                 {
@@ -505,9 +506,18 @@ namespace MiniPlayer
 
         async Task InitMedia()
         {
-            mgr = await Mgr.RequestAsync();
-            mgr.CurrentSessionChanged += (_, __) => Dispatcher.Invoke(Hook);
-            Hook();
+            // logo após ligar o PC o serviço de mídia do Windows pode ainda não estar pronto: tenta de novo em vez de falhar
+            for (int tries = 0; ; tries++)
+            {
+                try
+                {
+                    mgr = await Mgr.RequestAsync();
+                    mgr.CurrentSessionChanged += (_, __) => Dispatcher.Invoke(Hook);
+                    Hook();
+                    return;
+                }
+                catch { if (tries >= 30) return; await Task.Delay(2000); }
+            }
         }
 
         void Hook()
@@ -523,11 +533,11 @@ namespace MiniPlayer
 
         async Task Refresh()
         {
-            if (session == null) { TitleText.Text = "Nada tocando"; ArtistText.Text = ""; Art.Source = null; NoArt.Visibility = Visibility.Visible; PlayBtn.Content = ""; return; }
+            if (session == null) { TitleText.Text = L.S("nothing"); ArtistText.Text = ""; Art.Source = null; NoArt.Visibility = Visibility.Visible; PlayBtn.Content = ""; return; }
             try
             {
                 var p = await session.TryGetMediaPropertiesAsync();
-                TitleText.Text = string.IsNullOrEmpty(p.Title) ? "Sem título" : p.Title;
+                TitleText.Text = string.IsNullOrEmpty(p.Title) ? L.S("untitled") : p.Title;
                 ArtistText.Text = p.Artist;
                 var playing = session.GetPlaybackInfo().PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
                 PlayBtn.Content = playing ? "" : "";
