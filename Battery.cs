@@ -18,6 +18,9 @@ namespace MiniPlayer
         const string ContainerKey = "System.Devices.ContainerId";
         const string HwKey = "System.Devices.HardwareIds";
         const string AepConnected = "System.Devices.Aep.IsConnected", AepContainer = "System.Devices.Aep.ContainerId";
+        // classe do aparelho Bluetooth: é o que o próprio Windows usa para escolher o ícone nas Configurações
+        const string CodMajor = "System.Devices.Aep.Bluetooth.Cod.Major", CodMinor = "System.Devices.Aep.Bluetooth.Cod.Minor",
+                     LeAppearance = "System.Devices.Aep.Bluetooth.Le.Appearance";
 
         public static event Action Changed;
         static readonly object gate = new();
@@ -53,7 +56,9 @@ namespace MiniPlayer
             foreach (var sel in new[] { Windows.Devices.Bluetooth.BluetoothDevice.GetDeviceSelectorFromPairingState(true),
                                         Windows.Devices.Bluetooth.BluetoothLEDevice.GetDeviceSelectorFromPairingState(true) })
             {
-                var aw = DeviceInformation.CreateWatcher(sel, new[] { AepConnected, AepContainer }, DeviceInformationKind.AssociationEndpoint);
+                DeviceWatcher aw;
+                try { aw = DeviceInformation.CreateWatcher(sel, new[] { AepConnected, AepContainer, CodMajor, CodMinor, LeAppearance }, DeviceInformationKind.AssociationEndpoint); }
+                catch { aw = DeviceInformation.CreateWatcher(sel, new[] { AepConnected, AepContainer }, DeviceInformationKind.AssociationEndpoint); }
                 aw.Added += (_, d) => { lock (gate) aeps[d.Id] = d; Notify(); };
                 aw.Updated += (snd, u) => { lock (gate) if (aeps.TryGetValue(u.Id, out var d)) d.Update(u); Notify(); ProtoKick(); };
                 aw.Removed += (_, u) => { lock (gate) aeps.Remove(u.Id); Notify(); };
@@ -110,7 +115,11 @@ namespace MiniPlayer
                 {
                     var sel = Windows.Devices.HumanInterfaceDevice.HidDevice.GetDeviceSelector(page, id);
                     foreach (var di in await DeviceInformation.FindAllAsync(sel, new[] { ContainerKey }))
-                        if (di.Properties.TryGetValue(ContainerKey, out var c) && c != null) map[c.ToString()] = kind; // ordem: teclado < mouse < controle (mouses costumam expor também um "teclado" para macros)
+                        if (di.Properties.TryGetValue(ContainerKey, out var c) && c != null) {
+                            var key = c.ToString();
+                            if (map.TryGetValue(key, out var prev) && prev != kind && prev != "pad" && kind != "pad") map[key] = "?"; // teclado e mouse juntos: ambíguo
+                            else if (!map.ContainsKey(key) || kind == "pad") map[key] = kind;
+                        }
                 }
                 catch { }
             }
@@ -147,12 +156,18 @@ namespace MiniPlayer
             var hk = hidKinds;
             List<DeviceInformation> devs;
             var offline = new HashSet<string>();
+            var btKinds = new Dictionary<string, string>();
             lock (gate)
             {
                 devs = winDevs.Values.ToList();
                 foreach (var a in aeps.Values)
-                    if (a.Properties.TryGetValue(AepConnected, out var on) && on is bool b && !b && a.Properties.TryGetValue(AepContainer, out var c) && c != null)
-                        offline.Add(c.ToString());
+                {
+                    if (!a.Properties.TryGetValue(AepContainer, out var c) || c == null) continue;
+                    var cid = c.ToString();
+                    if (a.Properties.TryGetValue(AepConnected, out var on) && on is bool b && !b) offline.Add(cid);
+                    var k = KindFromBluetooth(a);
+                    if (k != null) btKinds[cid] = k;
+                }
             }
             foreach (var d in devs)
             {
@@ -165,9 +180,9 @@ namespace MiniPlayer
                     lock (gate) containers.TryGetValue(cid, out ct);
                     string name = string.IsNullOrEmpty(ct.name) ? d.Name : ct.name, cat = ct.cat ?? "";
                     var ids = d.Properties.TryGetValue(HwKey, out var h) && h is string[] arr ? string.Join(";", arr).ToLowerInvariant() : "";
-                    // tipo: 1) VID/PID conhecido  2) classificação HID do Windows  3) categoria do aparelho  4) nome
-                    var byName = Kind(name, null);
-                    string kind = KindFromIds(ids) ?? byName ?? (hk.TryGetValue(cid, out var k) ? k : null) ?? KindFromCategory(cat) ?? "bt";
+                    // tipo: 1) classe Bluetooth (mesma das Configurações do Windows)  2) VID/PID  3) nome  4) classificação HID  5) categoria
+                    string kind = (btKinds.TryGetValue(cid, out var bk) ? bk : null) ?? KindFromIds(ids) ?? Kind(name, null)
+                                  ?? (hk.TryGetValue(cid, out var k) && k != "?" ? k : null) ?? KindFromCategory(cat) ?? "bt";
                     if ((kind == "ds5" || kind == "ds4") && PsActive(kind)) continue; // já lido direto, com mais precisão
                     res.Add(new BtBattery(name, pct, kind));
                 }
@@ -176,6 +191,41 @@ namespace MiniPlayer
             try { res.AddRange(ReadPlayStation()); } catch { }
             res.AddRange(protoList);
             return res.GroupBy(x => x.Name.ToLowerInvariant()).Select(g => g.First()).OrderBy(x => x.Name).ToList();
+        }
+
+        // Bluetooth clássico: Class of Device. Bluetooth LE: Appearance. Ambos definidos pelo fabricante no próprio aparelho.
+        static string KindFromBluetooth(DeviceInformation a)
+        {
+            try
+            {
+                if (a.Properties.TryGetValue(LeAppearance, out var ap) && ap != null)
+                {
+                    int v = Convert.ToInt32(ap);
+                    switch (v)
+                    {
+                        case 0x03C1: return "kbd";
+                        case 0x03C2: return "mouse";
+                        case 0x03C3: case 0x03C4: return "pad";
+                    }
+                    int cat = v >> 6;
+                    if (cat == 0x21 || cat == 0x25) return "head";            // áudio (fone/headset), aparelho auditivo
+                    if (cat == 0x0F) return null;                             // HID genérico: decide por outras fontes
+                }
+                if (a.Properties.TryGetValue(CodMajor, out var ma) && ma != null && a.Properties.TryGetValue(CodMinor, out var mi) && mi != null)
+                {
+                    int major = Convert.ToInt32(ma), minor = Convert.ToInt32(mi);
+                    if (major == 5) // periférico
+                    {
+                        int sub = minor & 0x0F, kb = minor & 0x30;
+                        if (sub == 1 || sub == 2) return "pad";
+                        if (kb == 0x20) return "mouse";
+                        if (kb == 0x10 || kb == 0x30) return "kbd";
+                    }
+                    if (major == 4) return minor == 5 ? "spk" : "head"; // áudio/vídeo
+                }
+            }
+            catch { }
+            return null;
         }
 
         static string KindFromCategory(string cat) =>
