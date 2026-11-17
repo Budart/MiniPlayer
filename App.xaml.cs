@@ -22,7 +22,7 @@ namespace MiniPlayer
         [DllImport("user32.dll")] static extern IntPtr FindWindow(string c, string w);
 
         static readonly string Cfg = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "MiniPlayer.txt");
-        public static bool Floating, ShowBattery = true;
+        public static bool Floating, ShowBattery = true, FloatBehind;
         public static double FloatX = 200, FloatY = 200;
         public static List<BtBattery> Batteries = new();
         public static event Action BatteriesChanged;
@@ -39,7 +39,7 @@ namespace MiniPlayer
 
         void OnStartup(object s, StartupEventArgs e)
         {
-            try { var p = File.ReadAllText(Cfg).Split(';'); Floating = p[0] == "1"; FloatX = double.Parse(p[1], CultureInfo.InvariantCulture); FloatY = double.Parse(p[2], CultureInfo.InvariantCulture); if (p.Length > 3) ShowBattery = p[3] == "1"; } catch { }
+            try { var p = File.ReadAllText(Cfg).Split(';'); Floating = p[0] == "1"; FloatX = double.Parse(p[1], CultureInfo.InvariantCulture); FloatY = double.Parse(p[2], CultureInfo.InvariantCulture); if (p.Length > 3) ShowBattery = p[3] == "1"; if (p.Length > 4) FloatBehind = p[4] == "1"; } catch { }
             Sync();
             BatteryReader.Changed += () => Dispatcher.BeginInvoke(new Action(RefreshBatteries));
             try { BatteryReader.Start(); } catch { }
@@ -99,7 +99,7 @@ namespace MiniPlayer
             LastAudio = DateTime.Now;
         }
 
-        public static void Save() { try { File.WriteAllText(Cfg, string.Create(CultureInfo.InvariantCulture, $"{(Floating ? 1 : 0)};{FloatX};{FloatY};{(ShowBattery ? 1 : 0)}")); } catch { } }
+        public static void Save() { try { File.WriteAllText(Cfg, string.Create(CultureInfo.InvariantCulture, $"{(Floating ? 1 : 0)};{FloatX};{FloatY};{(ShowBattery ? 1 : 0)};{(FloatBehind ? 1 : 0)}")); } catch { } }
 
         // Decide quais barras recebem player: fixo = todas as barras; solto = só a principal
         void Sync()
