@@ -188,36 +188,39 @@ namespace MiniPlayer
             if (on == vertical && (!on || Math.Abs(barWidth - vWidth) < 0.5)) return;
             vertical = on; vWidth = barWidth;
             void At(UIElement e, int row, int col) { Grid.SetRow(e, row); Grid.SetColumn(e, col); }
+            var parts = new UIElement[] { Controls, Spectrum, ArtBox, InfoPanel, BatteryPanel };
+            Layout.RowDefinitions.Clear();
             if (on)
             {
                 SizeToContent = SizeToContent.Height; Width = barWidth;
-                Layout.RowDefinitions.Clear();
                 for (int i = 0; i < 4; i++) Layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
                 At(Controls, 0, 0); At(Spectrum, 0, 0); At(ArtBox, 1, 0); At(InfoPanel, 2, 0); At(BatteryPanel, 3, 0);
-                foreach (UIElement e in new UIElement[] { Controls, Spectrum, ArtBox, InfoPanel, BatteryPanel }) { Grid.SetColumnSpan(e, 4); Grid.SetRowSpan(e, 1); }
-                bool narrow = barWidth < 96; // barra estreita: botões empilhados
-                Controls.Orientation = narrow ? Orientation.Vertical : Orientation.Horizontal;
+                foreach (var e in parts) { Grid.SetColumnSpan(e, 4); Grid.SetRowSpan(e, 1); }
+                // botões empilhados e "apertadinhos"
+                Controls.Orientation = Orientation.Vertical;
+                foreach (var btn in new[] { PrevBtn, PlayBtn, NextBtn }) btn.Height = 20;
                 Controls.HorizontalAlignment = ArtBox.HorizontalAlignment = BatteryPanel.HorizontalAlignment = HorizontalAlignment.Center;
                 Controls.Margin = new Thickness(0, 6, 0, 0);
                 ArtBox.Margin = new Thickness(0, 6, 0, 0);
-                InfoPanel.Visibility = barWidth >= 110 && !App.HidePlayer ? Visibility.Visible : Visibility.Collapsed; // título só se couber
-                InfoPanel.Margin = new Thickness(6, 4, 6, 0); InfoPanel.MaxWidth = Math.Max(0, barWidth - 12);
-                TitleText.TextAlignment = ArtistText.TextAlignment = TextAlignment.Center;
-                BatteryPanel.Orientation = Orientation.Vertical; BatteryPanel.Margin = new Thickness(0, 2, 0, 8);
+                InfoPanel.Visibility = Visibility.Collapsed; // sem textos na vertical
+                BatteryPanel.Orientation = Orientation.Vertical; BatteryPanel.Margin = new Thickness(0, 4, 0, 8);
+                // espectro com menos barras (uma sim, uma não)
+                for (int i = 0; i < Spectrum.Children.Count; i++) Spectrum.Children[i].Visibility = i % 2 == 0 ? Visibility.Visible : Visibility.Collapsed;
             }
             else
             {
+                // volta ao layout horizontal padrão (também ao soltar o player que estava numa barra vertical)
                 SizeToContent = SizeToContent.Width;
-                Layout.RowDefinitions.Clear();
+                if (App.Floating) Height = 40;
                 At(Controls, 0, 0); At(Spectrum, 0, 0); At(ArtBox, 0, 1); At(InfoPanel, 0, 2); At(BatteryPanel, 0, 3);
-                foreach (UIElement e in new UIElement[] { Controls, Spectrum, ArtBox, InfoPanel, BatteryPanel }) { Grid.SetColumnSpan(e, 1); Grid.SetRowSpan(e, 1); }
+                foreach (var e in parts) { Grid.SetColumnSpan(e, 1); Grid.SetRowSpan(e, 1); }
                 Controls.Orientation = Orientation.Horizontal;
-                Controls.HorizontalAlignment = ArtBox.HorizontalAlignment = BatteryPanel.HorizontalAlignment = HorizontalAlignment.Stretch;
+                foreach (var btn in new[] { PrevBtn, PlayBtn, NextBtn }) btn.ClearValue(HeightProperty);
+                Controls.ClearValue(HorizontalAlignmentProperty); ArtBox.ClearValue(HorizontalAlignmentProperty); BatteryPanel.ClearValue(HorizontalAlignmentProperty);
                 Controls.Margin = new Thickness(0); ArtBox.Margin = new Thickness(6, 0, 0, 0);
                 InfoPanel.Visibility = App.HidePlayer ? Visibility.Collapsed : Visibility.Visible;
-                InfoPanel.Margin = new Thickness(8, 0, 8, 0); InfoPanel.MaxWidth = 170;
-                TitleText.TextAlignment = ArtistText.TextAlignment = TextAlignment.Left;
                 BatteryPanel.Orientation = Orientation.Horizontal; BatteryPanel.Margin = new Thickness(0, 0, 4, 0);
+                foreach (UIElement r in Spectrum.Children) r.Visibility = Visibility.Visible;
             }
             UpdateBatteries();
         }
@@ -287,7 +290,7 @@ namespace MiniPlayer
             foreach (Rectangle r in Spectrum.Children) r.Fill = th.Spectrum != null ? B(th.Spectrum) : accent;
             var vis = App.HidePlayer ? Visibility.Collapsed : Visibility.Visible;
             Controls.Visibility = Spectrum.Visibility = ArtBox.Visibility = InfoPanel.Visibility = vis;
-            if (vertical && vWidth < 110) InfoPanel.Visibility = Visibility.Collapsed; // barra lateral estreita: sem título
+            if (vertical) InfoPanel.Visibility = Visibility.Collapsed; // barra lateral: sem textos
             UpdateBatteries();
         }
 
@@ -343,8 +346,19 @@ namespace MiniPlayer
                     ToolTip = $"{b.Name}: {b.Percent}%" + (b.Charging ? " (carregando)" : "") };
                 sp.Children.Add(col);
                 if (b.Charging)
-                    sp.Children.Add(new System.Windows.Shapes.Path { Data = Geometry.Parse("M6,0 L1,7 H4.5 L3,12 L9,4.5 H5.5 Z"), Fill = fg,
-                        Width = 6, Height = 10, Stretch = Stretch.Uniform, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(2, 0, 0, 0) });
+                {
+                    var bolt = new System.Windows.Shapes.Path { Data = Geometry.Parse("M6,0 L1,7 H4.5 L3,12 L9,4.5 H5.5 Z"), Fill = fg,
+                        Width = 6, Height = 10, Stretch = Stretch.Uniform, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(2, 0, 0, 0) };
+                    if (vertical)
+                    {
+                        // na barra vertical: raio "espremido" à direita sem ocupar espaço (ícone e % continuam centralizados)
+                        var holder = new Canvas { Width = 0, Height = 10, VerticalAlignment = VerticalAlignment.Center, ClipToBounds = false };
+                        Canvas.SetLeft(bolt, 0); bolt.Margin = new Thickness(1, 0, 0, 0);
+                        holder.Children.Add(bolt);
+                        sp.Children.Add(holder);
+                    }
+                    else sp.Children.Add(bolt);
+                }
                 BatteryPanel.Children.Add(sp);
             }
         });
