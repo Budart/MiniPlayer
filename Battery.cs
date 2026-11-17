@@ -30,16 +30,21 @@ namespace MiniPlayer
                     int pct = Convert.ToInt32(b);
                     var cid = d.Properties.TryGetValue(ContainerKey, out var c) && c != null ? c.ToString() : d.Id;
                     if (!seen.Add(cid)) continue;
-                    string name = d.Name;
+                    string name = d.Name, category = "";
                     try
                     {
-                        var ct = await DeviceInformation.CreateFromIdAsync("{" + cid + "}", new[] { "System.Devices.Connected" }, DeviceInformationKind.DeviceContainer);
+                        var ct = await DeviceInformation.CreateFromIdAsync("{" + cid + "}", new[] { "System.Devices.Connected", "System.Devices.Category" }, DeviceInformationKind.DeviceContainer);
                         if (ct.Properties.TryGetValue("System.Devices.Connected", out var con) && con is bool on && !on) continue;
                         if (!string.IsNullOrEmpty(ct.Name)) name = ct.Name;
+                        if (ct.Properties.TryGetValue("System.Devices.Category", out var cat) && cat is string[] cats)
+                            category = string.Join(";", cats).ToLowerInvariant();
                     }
                     catch { }
                     var ids = d.Properties.TryGetValue(HwKey, out var h) && h is string[] arr ? string.Join(";", arr).ToLowerInvariant() : "";
                     string kind = KindFromIds(ids) ?? Kind(name, "bt");
+                    // categoria do Windows (ex.: "Input.Gaming") quando o nome não diz o que é
+                    if (kind == "bt") kind = category.Contains("gam") ? "pad" : category.Contains("audio") || category.Contains("headphone") || category.Contains("headset") ? "head"
+                        : category.Contains("keyboard") ? "kbd" : category.Contains("mouse") ? "mouse" : "bt";
                     // controle PlayStation já lido direto (mais preciso e em tempo real): não repete
                     if ((kind == "ds5" || kind == "ds4") && PsActive(kind)) continue;
                     res.Add(new BtBattery(name, Math.Clamp(pct, 0, 100), kind));
