@@ -6,7 +6,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationIcon>app.ico</ApplicationIcon>
     <AssemblyName>MiniPlayer</AssemblyName>
-    <Version>2.3.0</Version>
+    <Version>2.4.0</Version>
     <Product>MiniPlayer</Product>
     <Description>Mini player de mídia e bateria de dispositivos na barra de tarefas do Windows</Description>
     <Nullable>disable</Nullable>

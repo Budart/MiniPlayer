@@ -41,7 +41,9 @@ O encaixe segue o alinhamento da barra do Windows (*Configurações → Personal
 - **Centralizado**: um player em cada monitor, no canto esquerdo da barra.
 - **À esquerda**: o player fica colado à esquerda da bandeja do sistema (perto do relógio) em cada monitor.
 
-Mudou o alinhamento? O player se ajusta sozinho.
+- **Barra na lateral** (esquerda/direita, via ExplorerPatcher, StartAllBack etc.): o player vira uma coluna compacta (botões, capa e baterias empilhados), colada no topo da barra ou acima da bandeja.
+
+Mudou o alinhamento ou a posição da barra? O player se ajusta sozinho.
 
 ## Observações
 - Todo dispositivo Bluetooth conectado (fone, caixa de som, controle, teclado, mouse) aparece com seu ícone. Se o próprio aparelho não informar a bateria ao Windows, ele aparece com **--** no lugar da porcentagem.
