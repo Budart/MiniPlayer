@@ -63,6 +63,7 @@ namespace MiniPlayer
             try { var p = File.ReadAllText(Cfg).Split(';'); Floating = p[0] == "1"; FloatX = double.Parse(p[1], CultureInfo.InvariantCulture); FloatY = double.Parse(p[2], CultureInfo.InvariantCulture); if (p.Length > 3) ShowBattery = p[3] == "1"; if (p.Length > 4) FloatBehind = p[4] == "1"; if (p.Length > 5) HidePlayer = p[5] == "1"; if (p.Length > 6) Theme = int.Parse(p[6]); } catch { }
             Sync();
             SetupTray();
+            TrimMemory();
             BatteryReader.Changed += () => Dispatcher.BeginInvoke(new Action(RefreshBatteries));
             try { BatteryReader.Start(); } catch { }
             StartSpectrum();
@@ -206,6 +207,16 @@ namespace MiniPlayer
                 Exit += (_, __) => { tray.Visible = false; tray.Dispose(); };
             }
             catch { }
+        }
+
+        // Devolve ao Windows a memória usada só na inicialização (15 s depois) e periodicamente (10 min)
+        [DllImport("kernel32.dll")] static extern bool SetProcessWorkingSetSize(IntPtr p, IntPtr min, IntPtr max);
+        static void TrimMemory()
+        {
+            void Trim() { try { GC.Collect(2, GCCollectionMode.Optimized, false); SetProcessWorkingSetSize(System.Diagnostics.Process.GetCurrentProcess().Handle, (IntPtr)(-1), (IntPtr)(-1)); } catch { } }
+            var t = new DispatcherTimer(DispatcherPriority.ApplicationIdle) { Interval = TimeSpan.FromSeconds(15) };
+            t.Tick += (_, __) => { Trim(); t.Interval = TimeSpan.FromMinutes(10); };
+            t.Start();
         }
 
         public static void Save() { try { File.WriteAllText(Cfg, string.Create(CultureInfo.InvariantCulture, $"{(Floating ? 1 : 0)};{FloatX};{FloatY};{(ShowBattery ? 1 : 0)};{(FloatBehind ? 1 : 0)};{(HidePlayer ? 1 : 0)};{Theme}")); } catch { } }

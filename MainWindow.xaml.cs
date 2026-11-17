@@ -337,7 +337,7 @@ namespace MiniPlayer
             {
                 // coluna 1: desenho + % (centralizados); coluna 2: raio, centralizado na altura, colado
                 var col = new StackPanel { Orientation = Orientation.Vertical, VerticalAlignment = VerticalAlignment.Center };
-                col.Children.Add(new System.Windows.Shapes.Path { Data = Geometry.Parse(Icons.TryGetValue(b.Glyph, out var g) ? g : Icons["bt"]), Stroke = fg, StrokeThickness = 1.4,
+                col.Children.Add(new System.Windows.Shapes.Path { Data = IconGeometry(b.Glyph), Stroke = fg, StrokeThickness = 1.4,
                     StrokeLineJoin = PenLineJoin.Round, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round,
                     Width = 22, Height = 16, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Center, SnapsToDevicePixels = true });
                 col.Children.Add(new TextBlock { Text = b.Percent + "%", FontSize = 10, HorizontalAlignment = HorizontalAlignment.Center,
@@ -347,7 +347,7 @@ namespace MiniPlayer
                 sp.Children.Add(col);
                 if (b.Charging)
                 {
-                    var bolt = new System.Windows.Shapes.Path { Data = Geometry.Parse("M6,0 L1,7 H4.5 L3,12 L9,4.5 H5.5 Z"), Fill = fg,
+                    var bolt = new System.Windows.Shapes.Path { Data = BoltGeometry, Fill = fg,
                         Width = 6, Height = 10, Stretch = Stretch.Uniform, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(2, 0, 0, 0) };
                     if (vertical)
                     {
@@ -378,6 +378,17 @@ namespace MiniPlayer
             ["mouse"] = "M12,2.5 C8,2.5 6,5.5 6,9 V15 C6,18.8 8.6,21.5 12,21.5 C15.4,21.5 18,18.8 18,15 V9 C18,5.5 16,2.5 12,2.5 Z M6,10 H18 M12,2.5 V10 M12,5 V7.5",
             ["bt"] = "M7,7.5 L17,16.5 L12,21 V3 L17,7.5 L7,16.5",
         };
+
+        // Desenhos convertidos uma única vez e compartilhados (sem recriar a cada atualização)
+        static readonly System.Collections.Generic.Dictionary<string, Geometry> geoCache = new();
+        static readonly Geometry BoltGeometry = Frozen("M6,0 L1,7 H4.5 L3,12 L9,4.5 H5.5 Z");
+        static Geometry Frozen(string d) { var g = Geometry.Parse(d); g.Freeze(); return g; }
+        static Geometry IconGeometry(string kind)
+        {
+            if (!Icons.ContainsKey(kind)) kind = "bt";
+            if (!geoCache.TryGetValue(kind, out var g)) geoCache[kind] = g = Frozen(Icons[kind]);
+            return g;
+        }
 
         // Barras do espectro atrás dos botões, na cor predominante da capa
         readonly SolidColorBrush accent = new(Colors.White);
@@ -470,8 +481,8 @@ namespace MiniPlayer
                 {
                     using var ws = await p.Thumbnail.OpenReadAsync();
                     using var st = ws.AsStreamForRead();
-                    var ms = new MemoryStream(); await st.CopyToAsync(ms); ms.Position = 0;
-                    var bmp = new BitmapImage(); bmp.BeginInit(); bmp.CacheOption = BitmapCacheOption.OnLoad; bmp.StreamSource = ms; bmp.EndInit(); bmp.Freeze();
+                    using var ms = new MemoryStream(); await st.CopyToAsync(ms); ms.Position = 0;
+                    var bmp = new BitmapImage(); bmp.BeginInit(); bmp.CacheOption = BitmapCacheOption.OnLoad; bmp.DecodePixelWidth = 96; bmp.StreamSource = ms; bmp.EndInit(); bmp.Freeze();
                     Art.Source = bmp; NoArt.Visibility = Visibility.Collapsed;
                     accent.Color = Accent(bmp);
                 }

@@ -11,6 +11,8 @@
     <Description>Mini player de mídia e bateria de dispositivos na barra de tarefas do Windows</Description>
     <Nullable>disable</Nullable>
     <TieredPGO>true</TieredPGO>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="HidSharp" Version="2.1.0" />
@@ -18,6 +20,7 @@
     <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
   </ItemGroup>
   <ItemGroup>
+    <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="7" />
     <Resource Include="app.ico" />
   </ItemGroup>
 </Project>
