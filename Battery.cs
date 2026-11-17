@@ -23,6 +23,7 @@ namespace MiniPlayer
             var seen = new HashSet<string>();
             try
             {
+                var hidKinds = await HidContainers();
                 var devs = await DeviceInformation.FindAllAsync("", new[] { BattKey, ContainerKey, HwKey }, DeviceInformationKind.Device);
                 foreach (var d in devs)
                 {
@@ -41,7 +42,8 @@ namespace MiniPlayer
                     }
                     catch { }
                     var ids = d.Properties.TryGetValue(HwKey, out var h) && h is string[] arr ? string.Join(";", arr).ToLowerInvariant() : "";
-                    string kind = KindFromIds(ids) ?? Kind(name, "bt");
+                    // 1º: o tipo que o próprio Windows registra (controlador de jogo, teclado, mouse) — vale para qualquer marca/idioma
+                    string kind = hidKinds.TryGetValue(cid, out var hk) ? (KindFromIds(ids) ?? hk) : KindFromIds(ids) ?? Kind(name, "bt");
                     // categoria do Windows (ex.: "Input.Gaming") quando o nome não diz o que é
                     if (kind == "bt") kind = category.Contains("gam") ? "pad" : category.Contains("audio") || category.Contains("headphone") || category.Contains("headset") ? "head"
                         : category.Contains("keyboard") ? "kbd" : category.Contains("mouse") ? "mouse" : "bt";
@@ -146,6 +148,25 @@ namespace MiniPlayer
                 if (dup.b != null) list.Remove(dup);
             }
             return list.Select(x => x.b);
+        }
+
+        // Mapa ContainerId -> tipo, a partir das interfaces HID que o Windows classifica como joystick/gamepad, teclado ou mouse
+        static async Task<Dictionary<string, string>> HidContainers()
+        {
+            var map = new Dictionary<string, string>();
+            var kinds = new (ushort page, ushort id, string kind)[] { (0x01, 0x02, "mouse"), (0x01, 0x06, "kbd"), (0x01, 0x04, "pad"), (0x01, 0x05, "pad"), (0x01, 0x08, "pad") };
+            foreach (var (page, id, kind) in kinds)
+            {
+                try
+                {
+                    var sel = Windows.Devices.HumanInterfaceDevice.HidDevice.GetDeviceSelector(page, id);
+                    foreach (var di in await DeviceInformation.FindAllAsync(sel, new[] { ContainerKey }))
+                        if (di.Properties.TryGetValue(ContainerKey, out var c) && c != null)
+                            map[c.ToString()] = kind; // controle sobrescreve teclado/mouse (alguns controles expõem ambos)
+                }
+                catch { }
+            }
+            return map;
         }
 
         static bool PsActive(string kind)
