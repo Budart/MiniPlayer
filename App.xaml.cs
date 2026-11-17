@@ -72,6 +72,7 @@ namespace MiniPlayer
         public static DateTime LastAudio;
         static WasapiLoopbackCapture cap;
         static readonly float[] ring = new float[1024]; static int rp;
+        static readonly Complex[] fft = new Complex[1024];
 
         static void StartSpectrum()
         {
@@ -92,7 +93,7 @@ namespace MiniPlayer
                         if (rp == ring.Length) { rp = 0; Analyze(fmt.SampleRate); }
                     }
                 };
-                cap.RecordingStopped += (s, e) => { try { cap.Dispose(); } catch { } Task.Delay(2000).ContinueWith(_ => StartSpectrum()); };
+                cap.RecordingStopped += (s, e) => { try { cap.Dispose(); } catch { } if (!quitting) Task.Delay(2000).ContinueWith(_ => StartSpectrum()); };
                 cap.StartRecording();
             }
             catch { }
@@ -101,7 +102,7 @@ namespace MiniPlayer
         static void Analyze(int sr)
         {
             int N = ring.Length;
-            var c = new Complex[N];
+            var c = fft;
             for (int i = 0; i < N; i++) { c[i].X = (float)(ring[i] * FastFourierTransform.HannWindow(i, N)); c[i].Y = 0; }
             FastFourierTransform.FFT(true, 10, c);
             double fMin = 50, fMax = 14000;
@@ -129,7 +130,17 @@ namespace MiniPlayer
         }
         public static void SetBehind(bool on) { FloatBehind = on; Save(); }
         public static void SetBattery(bool on) { ShowBattery = on; Save(); RefreshBatteries(); }
-        public static void Quit() { tray?.Dispose(); Current.Shutdown(); }
+        // Encerramento limpo: fecha janelas (solta ganchos), para a captura de áudio e garante que o processo termina
+        static bool quitting;
+        public static void Quit()
+        {
+            quitting = true;
+            try { if (tray != null) { tray.Visible = false; tray.Dispose(); } } catch { }
+            try { cap?.StopRecording(); } catch { }
+            foreach (Window w in Current.Windows) try { w.Close(); } catch { }
+            Current.Shutdown();
+            Environment.Exit(0);
+        }
 
         public static void SetStartup(bool on)
         {

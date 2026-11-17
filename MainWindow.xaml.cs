@@ -38,25 +38,23 @@ namespace MiniPlayer
         [DllImport("user32.dll")] static extern IntPtr CallNextHookEx(IntPtr h, int c, IntPtr wp, IntPtr lp);
         [DllImport("kernel32.dll")] static extern IntPtr GetModuleHandle(string n);
         LowLevelProc mouseProc; IntPtr mouseHook;
+        struct POINT { public int X, Y; }
+        [DllImport("user32.dll")] static extern IntPtr WindowFromPoint(POINT p);
+        [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
         void HookMouse()
         {
+            if (mouseHook != IntPtr.Zero) return;
             mouseProc = (code, wp, lp) =>
             {
                 int msg = (int)wp;
                 if (code >= 0 && (msg == 0x201 || msg == 0x204 || msg == 0x207))
                 {
                     int x = Marshal.ReadInt32(lp), y = Marshal.ReadInt32(lp, 4);
-                    Dispatcher.InvokeAsync(() =>
-                    {
-                        if (openMenu == null || !openMenu.IsOpen) return;
-                        try
-                        {
-                            var a = openMenu.PointToScreen(new Point(0, 0));
-                            var b = openMenu.PointToScreen(new Point(openMenu.ActualWidth, openMenu.ActualHeight));
-                            if (x < a.X || x > b.X || y < a.Y || y > b.Y) openMenu.IsOpen = false;
-                        }
-                        catch { openMenu.IsOpen = false; }
-                    });
+                    // clique numa janela de outro programa (fora do menu e dos submenus, que são janelas deste app) fecha o menu
+                    var hw = WindowFromPoint(new POINT { X = x, Y = y });
+                    GetWindowThreadProcessId(hw, out uint pid);
+                    if (pid != (uint)Environment.ProcessId)
+                        Dispatcher.InvokeAsync(() => { if (openMenu != null && openMenu.IsOpen) openMenu.IsOpen = false; });
                 }
                 return CallNextHookEx(mouseHook, code, wp, lp);
             };
@@ -80,6 +78,7 @@ namespace MiniPlayer
             Loaded += async (_, __) => { Setup(); SetupSpectrum(); UpdateBatteries(); await InitMedia(); };
             App.BatteriesChanged += UpdateBatteries;
             App.LookChanged += ApplyLook;
+            Closed += (_, __) => UnhookMouse(); // nunca deixa o gancho de mouse para trás
             Closed += (_, __) => App.LookChanged -= ApplyLook;
             Loaded += (_, __) => ApplyLook();
             Closed += (_, __) => App.BatteriesChanged -= UpdateBatteries;
