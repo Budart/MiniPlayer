@@ -317,10 +317,10 @@ namespace MiniPlayer
                 col.Children.Add(new System.Windows.Shapes.Path { Data = IconGeometry(b.Glyph), Stroke = fg, StrokeThickness = 1.4,
                     StrokeLineJoin = PenLineJoin.Round, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round,
                     Width = 22, Height = 16, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Center, SnapsToDevicePixels = true });
-                col.Children.Add(new TextBlock { Text = b.Percent + "%", FontSize = 10, HorizontalAlignment = HorizontalAlignment.Center,
-                    Foreground = b.Percent <= 20 && !b.Charging ? Brushes.OrangeRed : fg });
+                col.Children.Add(new TextBlock { Text = b.Percent < 0 ? "--" : b.Percent + "%", FontSize = 10, HorizontalAlignment = HorizontalAlignment.Center,
+                    Foreground = b.Percent >= 0 && b.Percent <= 20 && !b.Charging ? Brushes.OrangeRed : fg });
                 var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = vertical ? new Thickness(0, 6, 0, 0) : new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, Background = Brushes.Transparent,
-                    ToolTip = $"{b.Name}: {b.Percent}%" + (b.Charging ? " (carregando)" : "") };
+                    ToolTip = b.Percent < 0 ? $"{b.Name}: conectado (o aparelho não informa a bateria)" : $"{b.Name}: {b.Percent}%" + (b.Charging ? " (carregando)" : "") };
                 sp.Children.Add(col);
                 if (b.Charging)
                 {

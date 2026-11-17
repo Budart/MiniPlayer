@@ -44,6 +44,7 @@ O encaixe segue o alinhamento da barra do Windows (*Configurações → Personal
 Mudou o alinhamento? O player se ajusta sozinho.
 
 ## Observações
+- Todo dispositivo Bluetooth conectado (fone, caixa de som, controle, teclado, mouse) aparece com seu ícone. Se o próprio aparelho não informar a bateria ao Windows, ele aparece com **--** no lugar da porcentagem.
 - Alguns aparelhos só informam a bateria em faixas (o DualSense, por exemplo, informa 11 níveis), então a % segue a precisão do próprio aparelho.
 - Mouses e teclados com dongle de protocolo próprio e não documentado podem não exibir bateria.
 - As configurações ficam em `%AppData%\MiniPlayer.txt`.

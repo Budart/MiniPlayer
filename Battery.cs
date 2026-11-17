@@ -155,7 +155,9 @@ namespace MiniPlayer
             var seen = new HashSet<string>();
             var hk = hidKinds;
             List<DeviceInformation> devs;
-            var offline = new HashSet<string>();
+            // um mesmo aparelho pode ter 2 registros Bluetooth (clássico + LE, comum em fones Sony, JBL...):
+            // ele só está desconectado se NENHUM dos registros estiver conectado
+            var known = new HashSet<string>(); var online = new Dictionary<string, DeviceInformation>();
             var btKinds = new Dictionary<string, string>();
             lock (gate)
             {
@@ -164,11 +166,13 @@ namespace MiniPlayer
                 {
                     if (!a.Properties.TryGetValue(AepContainer, out var c) || c == null) continue;
                     var cid = c.ToString();
-                    if (a.Properties.TryGetValue(AepConnected, out var on) && on is bool b && !b) offline.Add(cid);
+                    known.Add(cid);
+                    if (a.Properties.TryGetValue(AepConnected, out var on) && on is bool b && b) online.TryAdd(cid, a);
                     var k = KindFromBluetooth(a);
-                    if (k != null) btKinds[cid] = k;
+                    if (k != null && !btKinds.ContainsKey(cid)) btKinds[cid] = k;
                 }
             }
+            var offline = new HashSet<string>(known.Where(c => !online.ContainsKey(c)));
             foreach (var d in devs)
             {
                 try
@@ -190,7 +194,23 @@ namespace MiniPlayer
             }
             try { res.AddRange(ReadPlayStation()); } catch { }
             res.AddRange(protoList);
-            return res.GroupBy(x => x.Name.ToLowerInvariant()).Select(g => g.First()).OrderBy(x => x.Name).ToList();
+            // aparelhos Bluetooth conectados que não informam bateria ao Windows também aparecem (com "--")
+            foreach (var (cid, a) in online)
+            {
+                if (seen.Contains(cid)) continue;
+                try
+                {
+                    string name = a.Name;
+                    if (string.IsNullOrWhiteSpace(name)) continue;
+                    string kind = (btKinds.TryGetValue(cid, out var bk) ? bk : null) ?? Kind(name, null) ?? (hk.TryGetValue(cid, out var k) && k != "?" ? k : null) ?? "bt";
+                    if ((kind == "ds5" || kind == "ds4") && PsActive(kind)) continue;
+                    seen.Add(cid);
+                    res.Add(new BtBattery(name, -1, kind));
+                }
+                catch { }
+            }
+            // mesmo nome vindo de fontes diferentes: fica a que tem bateria
+            return res.GroupBy(x => x.Name.ToLowerInvariant()).Select(g => g.OrderByDescending(x => x.Percent).First()).OrderBy(x => x.Name).ToList();
         }
 
         // Bluetooth clássico: Class of Device. Bluetooth LE: Appearance. Ambos definidos pelo fabricante no próprio aparelho.
