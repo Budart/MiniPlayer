@@ -40,7 +40,7 @@ namespace MiniPlayer
             // bateria informada pelo Windows (fones, Xbox, teclados/mouses BLE...): atualizações chegam em tempo real
             var w = DeviceInformation.CreateWatcher("", new[] { BattKey, ContainerKey, HwKey }, DeviceInformationKind.Device);
             w.Added += (_, d) => { if (HasBatt(d)) Track(d); };
-            w.Updated += (_, u) =>
+            w.Updated += (snd, u) =>
             {
                 lock (gate)
                     if (winDevs.TryGetValue(u.Id, out var d)) { d.Update(u); if (!HasBatt(d)) winDevs.Remove(u.Id); Notify(); return; }
@@ -55,13 +55,13 @@ namespace MiniPlayer
             {
                 var aw = DeviceInformation.CreateWatcher(sel, new[] { AepConnected, AepContainer }, DeviceInformationKind.AssociationEndpoint);
                 aw.Added += (_, d) => { lock (gate) aeps[d.Id] = d; Notify(); };
-                aw.Updated += (_, u) => { lock (gate) if (aeps.TryGetValue(u.Id, out var d)) d.Update(u); Notify(); ProtoKick(); };
+                aw.Updated += (snd, u) => { lock (gate) if (aeps.TryGetValue(u.Id, out var d)) d.Update(u); Notify(); ProtoKick(); };
                 aw.Removed += (_, u) => { lock (gate) aeps.Remove(u.Id); Notify(); };
                 aw.Start();
             }
 
             // USB/HID: controles PlayStation, tipos de dispositivo e protocolos de fabricantes
-            DeviceList.Local.Changed += (_, __) => { EnsureReaders(); _ = RefreshHidKinds(); ProtoKick(); };
+            DeviceList.Local.Changed += (snd, ev) => { EnsureReaders(); _ = RefreshHidKinds(); ProtoKick(); };
             EnsureReaders();
             _ = RefreshHidKinds();
             Task.Run(ProtocolLoop);
