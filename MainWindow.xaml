@@ -18,7 +18,7 @@
     </Style>
   </Window.Resources>
   <Border x:Name="Root" Background="#01000000" CornerRadius="6" Padding="4,0" ClipToBounds="True">
-    <Grid>
+    <Grid x:Name="Layout">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
       </Grid.ColumnDefinitions>
@@ -30,8 +30,8 @@
         </Grid>
       </Border>
       <StackPanel x:Name="InfoPanel" Grid.Column="2" Margin="8,0" MaxWidth="170" VerticalAlignment="Center">
-        <TextBlock x:Name="TitleText" Text="Nada tocando" Foreground="White" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-        <TextBlock x:Name="ArtistText" Foreground="#BBFFFFFF" FontSize="11" TextTrimming="CharacterEllipsis"/>
+        <TextBlock x:Name="TitleText" TextAlignment="Left" Text="Nada tocando" Foreground="White" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+        <TextBlock x:Name="ArtistText" TextAlignment="Left" Foreground="#BBFFFFFF" FontSize="11" TextTrimming="CharacterEllipsis"/>
       </StackPanel>
       <UniformGrid x:Name="Spectrum" Grid.Column="0" Rows="1" Opacity="0.28" IsHitTestVisible="False"/>
       <StackPanel x:Name="Controls" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">

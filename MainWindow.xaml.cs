@@ -114,12 +114,30 @@ namespace MiniPlayer
             var me = new WindowInteropHelper(this).Handle;
             if (App.Floating)
             {
+                SetVertical(false, 0);
                 if (Math.Abs(Left - App.FloatX) > 1 || Math.Abs(Top - App.FloatY) > 1) { Left = App.FloatX; Top = App.FloatY; }
             }
             else if (GetWindowRect(bar, out var r) && GetWindowRect(me, out var w))
             {
                 var src = PresentationSource.FromVisual(this);
                 double s = src?.CompositionTarget?.TransformToDevice.M11 ?? 1;
+                // barra na lateral (esquerda/direita): layout vertical, colado no topo ou acima da bandeja
+                if ((r.B - r.T) > (r.R - r.L))
+                {
+                    SetVertical(true, (r.R - r.L) / s);
+                    int vh = w.B - w.T, vy;
+                    if (App.Centered) vy = r.T + (int)(8 * s);
+                    else
+                    {
+                        var tr = isPrimary ? FindWindowEx(bar, IntPtr.Zero, "TrayNotifyWnd", null) : IntPtr.Zero;
+                        int top = tr != IntPtr.Zero && GetWindowRect(tr, out var tt) ? tt.T : r.B - (int)(160 * s);
+                        vy = top - vh - (int)(8 * s);
+                    }
+                    if (w.L != r.L || w.T != vy) SetWindowPos(me, IntPtr.Zero, r.L, vy, 0, 0, 0x0001 | 0x0004 | 0x0010);
+                    if (!menuOpen && !fullscreen) ApplyZ();
+                    return;
+                }
+                SetVertical(false, 0);
                 var hh = (r.B - r.T) / s; if (Math.Abs(Height - hh) > 0.5) Height = hh;
                 int wPx = w.R - w.L, hPx = w.B - w.T, x;
                 if (App.Centered) x = r.L + (int)(8 * s);                       // canto esquerdo da barra
@@ -161,6 +179,47 @@ namespace MiniPlayer
             bool behind = App.Floating && App.FloatBehind && !OverTaskbar() && !DesktopInFront();
             if (Topmost == behind) Topmost = !behind;
             SetWindowPos(new WindowInteropHelper(this).Handle, new IntPtr(behind ? 1 : -1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010);
+        }
+
+        // Troca entre layout horizontal (barra embaixo/em cima) e vertical (barra na lateral)
+        bool vertical; double vWidth;
+        void SetVertical(bool on, double barWidth)
+        {
+            if (on == vertical && (!on || Math.Abs(barWidth - vWidth) < 0.5)) return;
+            vertical = on; vWidth = barWidth;
+            void At(UIElement e, int row, int col) { Grid.SetRow(e, row); Grid.SetColumn(e, col); }
+            if (on)
+            {
+                SizeToContent = SizeToContent.Height; Width = barWidth;
+                Layout.RowDefinitions.Clear();
+                for (int i = 0; i < 4; i++) Layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                At(Controls, 0, 0); At(Spectrum, 0, 0); At(ArtBox, 1, 0); At(InfoPanel, 2, 0); At(BatteryPanel, 3, 0);
+                foreach (UIElement e in new UIElement[] { Controls, Spectrum, ArtBox, InfoPanel, BatteryPanel }) { Grid.SetColumnSpan(e, 4); Grid.SetRowSpan(e, 1); }
+                bool narrow = barWidth < 96; // barra estreita: botões empilhados
+                Controls.Orientation = narrow ? Orientation.Vertical : Orientation.Horizontal;
+                Controls.HorizontalAlignment = ArtBox.HorizontalAlignment = BatteryPanel.HorizontalAlignment = HorizontalAlignment.Center;
+                Controls.Margin = new Thickness(0, 6, 0, 0);
+                ArtBox.Margin = new Thickness(0, 6, 0, 0);
+                InfoPanel.Visibility = barWidth >= 110 && !App.HidePlayer ? Visibility.Visible : Visibility.Collapsed; // título só se couber
+                InfoPanel.Margin = new Thickness(6, 4, 6, 0); InfoPanel.MaxWidth = Math.Max(0, barWidth - 12);
+                TitleText.TextAlignment = ArtistText.TextAlignment = TextAlignment.Center;
+                BatteryPanel.Orientation = Orientation.Vertical; BatteryPanel.Margin = new Thickness(0, 2, 0, 8);
+            }
+            else
+            {
+                SizeToContent = SizeToContent.Width;
+                Layout.RowDefinitions.Clear();
+                At(Controls, 0, 0); At(Spectrum, 0, 0); At(ArtBox, 0, 1); At(InfoPanel, 0, 2); At(BatteryPanel, 0, 3);
+                foreach (UIElement e in new UIElement[] { Controls, Spectrum, ArtBox, InfoPanel, BatteryPanel }) { Grid.SetColumnSpan(e, 1); Grid.SetRowSpan(e, 1); }
+                Controls.Orientation = Orientation.Horizontal;
+                Controls.HorizontalAlignment = ArtBox.HorizontalAlignment = BatteryPanel.HorizontalAlignment = HorizontalAlignment.Stretch;
+                Controls.Margin = new Thickness(0); ArtBox.Margin = new Thickness(6, 0, 0, 0);
+                InfoPanel.Visibility = App.HidePlayer ? Visibility.Collapsed : Visibility.Visible;
+                InfoPanel.Margin = new Thickness(8, 0, 8, 0); InfoPanel.MaxWidth = 170;
+                TitleText.TextAlignment = ArtistText.TextAlignment = TextAlignment.Left;
+                BatteryPanel.Orientation = Orientation.Horizontal; BatteryPanel.Margin = new Thickness(0, 0, 4, 0);
+            }
+            UpdateBatteries();
         }
 
         // Monitor sem bandeja: acha (via acessibilidade) o item mais à esquerda do grupo da direita (relógio etc.)
@@ -228,6 +287,7 @@ namespace MiniPlayer
             foreach (Rectangle r in Spectrum.Children) r.Fill = th.Spectrum != null ? B(th.Spectrum) : accent;
             var vis = App.HidePlayer ? Visibility.Collapsed : Visibility.Visible;
             Controls.Visibility = Spectrum.Visibility = ArtBox.Visibility = InfoPanel.Visibility = vis;
+            if (vertical && vWidth < 110) InfoPanel.Visibility = Visibility.Collapsed; // barra lateral estreita: sem título
             UpdateBatteries();
         }
 
@@ -279,7 +339,7 @@ namespace MiniPlayer
                     Width = 22, Height = 16, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Center, SnapsToDevicePixels = true });
                 col.Children.Add(new TextBlock { Text = b.Percent + "%", FontSize = 10, HorizontalAlignment = HorizontalAlignment.Center,
                     Foreground = b.Percent <= 20 && !b.Charging ? Brushes.OrangeRed : fg });
-                var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Background = Brushes.Transparent,
+                var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = vertical ? new Thickness(0, 6, 0, 0) : new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, Background = Brushes.Transparent,
                     ToolTip = $"{b.Name}: {b.Percent}%" + (b.Charging ? " (carregando)" : "") };
                 sp.Children.Add(col);
                 if (b.Charging)
