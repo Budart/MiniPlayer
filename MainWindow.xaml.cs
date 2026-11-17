@@ -537,7 +537,7 @@ namespace MiniPlayer
                     using var ws = await p.Thumbnail.OpenReadAsync();
                     using var st = ws.AsStreamForRead();
                     using var ms = new MemoryStream(); await st.CopyToAsync(ms); ms.Position = 0;
-                    var bmp = new BitmapImage(); bmp.BeginInit(); bmp.CacheOption = BitmapCacheOption.OnLoad; bmp.DecodePixelWidth = 96; bmp.StreamSource = ms; bmp.EndInit(); bmp.Freeze();
+                    var bmp = new BitmapImage(); bmp.BeginInit(); bmp.CacheOption = BitmapCacheOption.OnLoad; bmp.DecodePixelWidth = 160; /* nítido até ~500% de escala */ bmp.StreamSource = ms; bmp.EndInit(); bmp.Freeze();
                     Art.Source = bmp; NoArt.Visibility = Visibility.Collapsed;
                     accent.Color = Accent(bmp);
                 }

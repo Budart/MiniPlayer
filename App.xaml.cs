@@ -164,6 +164,16 @@ namespace MiniPlayer
 
         // ---- Ícone na bandeja do sistema (perto do relógio) ----
         static System.Windows.Forms.NotifyIcon tray;
+        // ícone da bandeja no tamanho exato da escala atual (o .ico tem 16 a 256 px)
+        static System.Drawing.Icon TrayIcon()
+        {
+            try
+            {
+                using var st = GetResourceStream(new Uri("pack://application:,,,/app.ico")).Stream;
+                return new System.Drawing.Icon(st, System.Windows.Forms.SystemInformation.SmallIconSize);
+            }
+            catch { return System.Drawing.Icon.ExtractAssociatedIcon(Environment.ProcessPath); }
+        }
         void SetupTray()
         {
             try
@@ -173,7 +183,7 @@ namespace MiniPlayer
                 menu.Opening += (_, e) => { AppMenu.FillTray(menu.Items, AppMenu.Build(null)); e.Cancel = false; };
                 tray = new System.Windows.Forms.NotifyIcon
                 {
-                    Icon = System.Drawing.Icon.ExtractAssociatedIcon(Environment.ProcessPath),
+                    Icon = TrayIcon(),
                     Text = "MiniPlayer",
                     ContextMenuStrip = menu,
                     Visible = true
