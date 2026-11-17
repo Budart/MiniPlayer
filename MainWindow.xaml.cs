@@ -133,10 +133,21 @@ namespace MiniPlayer
             if (!menuOpen && !fullscreen) ApplyZ();
         }
 
+        // No modo "atrás das janelas", se o player estiver sobre a barra de tarefas ele fica à frente dela
+        // (janelas comuns nunca ocupam a área da barra, então ele continua atrás delas)
+        bool OverTaskbar()
+        {
+            var me = new WindowInteropHelper(this).Handle;
+            if (!GetWindowRect(me, out var r)) return false;
+            var mi = new MONITORINFO { cb = Marshal.SizeOf<MONITORINFO>() };
+            if (!GetMonitorInfo(MonitorFromWindow(me, 2), ref mi)) return false;
+            return r.L < mi.work.L || r.T < mi.work.T || r.R > mi.work.R || r.B > mi.work.B; // sai da área de trabalho = está sobre a barra
+        }
+
         // Camada da janela: acima de tudo (padrão) ou, no modo solto, opcionalmente atrás de todas as janelas
         void ApplyZ()
         {
-            bool behind = App.Floating && App.FloatBehind;
+            bool behind = App.Floating && App.FloatBehind && !OverTaskbar();
             if (Topmost == behind) Topmost = !behind;
             SetWindowPos(new WindowInteropHelper(this).Handle, new IntPtr(behind ? 1 : -1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010);
         }
