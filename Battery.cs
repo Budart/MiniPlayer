@@ -187,7 +187,7 @@ namespace MiniPlayer
                     // tipo: 1) classe Bluetooth (mesma das Configurações do Windows)  2) VID/PID  3) nome  4) classificação HID  5) categoria
                     string kind = (btKinds.TryGetValue(cid, out var bk) ? bk : null) ?? KindFromIds(ids) ?? Kind(name, null)
                                   ?? (hk.TryGetValue(cid, out var k) && k != "?" ? k : null) ?? KindFromCategory(cat) ?? "bt";
-                    if ((kind == "ds5" || kind == "ds4") && PsActive(kind)) continue; // já lido direto, com mais precisão
+                    if (IsPsAlreadyRead(KindFromIds(ids) ?? Kind(name, null))) continue; // controle PlayStation já lido direto, com mais precisão
                     res.Add(new BtBattery(name, pct, kind));
                 }
                 catch { }
@@ -203,7 +203,7 @@ namespace MiniPlayer
                     string name = a.Name;
                     if (string.IsNullOrWhiteSpace(name)) continue;
                     string kind = (btKinds.TryGetValue(cid, out var bk) ? bk : null) ?? Kind(name, null) ?? (hk.TryGetValue(cid, out var k) && k != "?" ? k : null) ?? "bt";
-                    if ((kind == "ds5" || kind == "ds4") && PsActive(kind)) continue;
+                    if (IsPsAlreadyRead(Kind(name, null))) continue; // o mesmo DualSense/DualShock já aparece pela leitura direta
                     seen.Add(cid);
                     res.Add(new BtBattery(name, -1, kind));
                 }
@@ -247,6 +247,9 @@ namespace MiniPlayer
             catch { }
             return null;
         }
+
+        // o modelo é identificado pelo ID de hardware ou pelo nome, não pelo ícone (que é "joystick" para todos)
+        static bool IsPsAlreadyRead(string model) => (model == "ds5" || model == "ds4") && PsActive(model);
 
         static string KindFromCategory(string cat) =>
             cat.Contains("gam") ? "pad" : cat.Contains("headphone") || cat.Contains("headset") || cat.Contains("audio") ? "head"
