@@ -41,6 +41,7 @@ namespace MiniPlayer
         {
             try { var p = File.ReadAllText(Cfg).Split(';'); Floating = p[0] == "1"; FloatX = double.Parse(p[1], CultureInfo.InvariantCulture); FloatY = double.Parse(p[2], CultureInfo.InvariantCulture); if (p.Length > 3) ShowBattery = p[3] == "1"; if (p.Length > 4) FloatBehind = p[4] == "1"; } catch { }
             Sync();
+            SetupTray();
             BatteryReader.Changed += () => Dispatcher.BeginInvoke(new Action(RefreshBatteries));
             try { BatteryReader.Start(); } catch { }
             StartSpectrum();
@@ -99,10 +100,75 @@ namespace MiniPlayer
             LastAudio = DateTime.Now;
         }
 
+        // ---- Ações das opções (usadas pelo menu do player e pelo ícone da bandeja) ----
+        static readonly string StartupLnk = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup), "MiniPlayer.lnk");
+        public static bool StartsWithWindows => File.Exists(StartupLnk);
+
+        public static void SetFloating(bool on, double x, double y)
+        {
+            Floating = on;
+            if (on) { FloatX = x; FloatY = y; }
+            Save();
+            (Current as App)?.Sync();
+        }
+        public static void SetBehind(bool on) { FloatBehind = on; Save(); }
+        public static void SetBattery(bool on) { ShowBattery = on; Save(); RefreshBatteries(); }
+        public static void Quit() { tray?.Dispose(); Current.Shutdown(); }
+
+        public static void SetStartup(bool on)
+        {
+            try
+            {
+                if (!on) { File.Delete(StartupLnk); return; }
+                var exe = Environment.ProcessPath;
+                var sh = Activator.CreateInstance(Type.GetTypeFromProgID("WScript.Shell"));
+                dynamic sc = sh.GetType().InvokeMember("CreateShortcut", System.Reflection.BindingFlags.InvokeMethod, null, sh, new object[] { StartupLnk });
+                sc.TargetPath = exe; sc.WorkingDirectory = Path.GetDirectoryName(exe); sc.Save();
+            }
+            catch { }
+        }
+
+        // ---- Ícone na bandeja do sistema (perto do relógio) ----
+        static System.Windows.Forms.NotifyIcon tray;
+        void SetupTray()
+        {
+            try
+            {
+                var menu = new System.Windows.Forms.ContextMenuStrip();
+                System.Windows.Forms.ToolStripMenuItem Item(string text, Func<bool> state, Action<bool> act, Func<bool> enabled = null)
+                {
+                    var i = new System.Windows.Forms.ToolStripMenuItem(text) { CheckOnClick = true };
+                    i.Click += (_, __) => act(i.Checked);
+                    menu.Opening += (_, __) => { i.Checked = state(); i.Enabled = enabled?.Invoke() ?? true; };
+                    return i;
+                }
+                menu.Items.Add(Item("Soltar (arrastar livremente)", () => Floating, on =>
+                {
+                    var w = players.Values.FirstOrDefault();
+                    SetFloating(on, w?.Left ?? 200, (w?.Top ?? 260) - 60);
+                }));
+                menu.Items.Add(Item("Manter atrás das janelas", () => FloatBehind, SetBehind, () => Floating));
+                menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
+                menu.Items.Add(Item("Mostrar bateria", () => ShowBattery, SetBattery));
+                menu.Items.Add(Item("Iniciar com o Windows", () => StartsWithWindows, SetStartup));
+                menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
+                menu.Items.Add("Fechar", null, (_, __) => Quit());
+                tray = new System.Windows.Forms.NotifyIcon
+                {
+                    Icon = System.Drawing.Icon.ExtractAssociatedIcon(Environment.ProcessPath),
+                    Text = "MiniPlayer",
+                    ContextMenuStrip = menu,
+                    Visible = true
+                };
+                Exit += (_, __) => { tray.Visible = false; tray.Dispose(); };
+            }
+            catch { }
+        }
+
         public static void Save() { try { File.WriteAllText(Cfg, string.Create(CultureInfo.InvariantCulture, $"{(Floating ? 1 : 0)};{FloatX};{FloatY};{(ShowBattery ? 1 : 0)};{(FloatBehind ? 1 : 0)}")); } catch { } }
 
         // Decide quais barras recebem player: fixo = todas as barras; solto = só a principal
-        void Sync()
+        public void Sync()
         {
             var primary = FindWindow("Shell_TrayWnd", null);
             var bars = new List<IntPtr> { primary };

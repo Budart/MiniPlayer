@@ -19,12 +19,14 @@ Mini player de mídia que se encaixa na barra de tarefas do Windows 10/11, com e
   - mouses e teclados 2.4 GHz que seguem o padrão HID de bateria.
 - **Some sozinho** em jogos e vídeos em tela cheia, e volta ao sair.
 
-## Menu (botão direito no player)
+## Menu (botão direito no player ou no ícone da bandeja)
+O MiniPlayer também fica com um ícone na bandeja do sistema (perto do relógio; se não aparecer, procure na seta **^**). Ele tem as mesmas opções do menu do player.
+
 | Opção | O que faz |
 |---|---|
 | **Soltar (arrastar livremente)** | Desprende o player da barra: arraste-o para qualquer lugar da tela. A posição é lembrada. Desmarque para fixá-lo de volta na barra de tarefas. |
-| **Manter atrás das janelas** | Só no modo solto. Marcado: o player fica atrás das janelas, como um widget na área de trabalho. Desmarcado: fica acima de todas as janelas. |
-| **Mostrar bateria Bluetooth** | Mostra ou esconde os indicadores de bateria. |
+| **Manter atrás das janelas** | Só no modo solto. Marcado: o player fica atrás das janelas, como um widget na área de trabalho. Desmarcado: fica acima de todas as janelas. Ao usar **Win+D** (mostrar a área de trabalho) ou sobre a barra de tarefas, ele continua visível. |
+| **Mostrar bateria** | Mostra ou esconde os indicadores de bateria. |
 | **Iniciar com o Windows** | Abre o MiniPlayer automaticamente ao ligar o PC. |
 | **Fechar** | Encerra o MiniPlayer. |
 

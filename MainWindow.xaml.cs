@@ -144,10 +144,19 @@ namespace MiniPlayer
             return r.L < mi.work.L || r.T < mi.work.T || r.R > mi.work.R || r.B > mi.work.B; // sai da área de trabalho = está sobre a barra
         }
 
+        // Win+D, "mostrar área de trabalho" ou clique no desktop: o foco vai para a área de trabalho
+        static bool DesktopInFront()
+        {
+            var fg = GetForegroundWindow(); if (fg == IntPtr.Zero) return false;
+            var sb = new System.Text.StringBuilder(32); GetClassName(fg, sb, 32);
+            var c = sb.ToString();
+            return c == "WorkerW" || c == "Progman";
+        }
+
         // Camada da janela: acima de tudo (padrão) ou, no modo solto, opcionalmente atrás de todas as janelas
         void ApplyZ()
         {
-            bool behind = App.Floating && App.FloatBehind && !OverTaskbar();
+            bool behind = App.Floating && App.FloatBehind && !OverTaskbar() && !DesktopInFront();
             if (Topmost == behind) Topmost = !behind;
             SetWindowPos(new WindowInteropHelper(this).Handle, new IntPtr(behind ? 1 : -1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010);
         }
@@ -204,24 +213,26 @@ namespace MiniPlayer
             Visibility = fs ? Visibility.Hidden : Visibility.Visible;
         }
 
+        // Menu do botão direito: as mesmas opções do ícone da bandeja (ações centralizadas no App)
         void ShowMenu()
         {
             var m = new ContextMenu();
-            var startup = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup), "MiniPlayer.lnk");
-            var auto = new MenuItem { Header = "Iniciar com o Windows", IsCheckable = true, IsChecked = File.Exists(startup) };
-            auto.Click += (_, __) => ToggleStartup(startup, auto.IsChecked);
-            var free = new MenuItem { Header = "Soltar (arrastar livremente)", IsCheckable = true, IsChecked = App.Floating };
-            free.Click += (_, __) => { App.Floating = free.IsChecked; if (App.Floating) { App.FloatX = Left; App.FloatY = Top - 60; } App.Save(); ApplyZ(); };
-            var behind = new MenuItem { Header = "Manter atrás das janelas", IsCheckable = true, IsChecked = App.FloatBehind, IsEnabled = App.Floating,
-                ToolTip = "Disponível no modo solto. Desmarcado: fica acima de todas as janelas." };
-            behind.Click += (_, __) => { App.FloatBehind = behind.IsChecked; App.Save(); ApplyZ(); };
-            var bat = new MenuItem { Header = "Mostrar bateria Bluetooth", IsCheckable = true, IsChecked = App.ShowBattery };
-            bat.Click += (_, __) => { App.ShowBattery = bat.IsChecked; App.Save(); App.RefreshBatteries(); };
+            MenuItem Item(string text, bool check, bool enabled, Action<bool> act)
+            {
+                var i = new MenuItem { Header = text, IsCheckable = true, IsChecked = check, IsEnabled = enabled };
+                i.Click += (_, __) => act(i.IsChecked);
+                return i;
+            }
+            m.Items.Add(Item("Soltar (arrastar livremente)", App.Floating, true, on => App.SetFloating(on, Left, Top - 60)));
+            m.Items.Add(Item("Manter atrás das janelas", App.FloatBehind, App.Floating, App.SetBehind));
+            m.Items.Add(new Separator());
+            m.Items.Add(Item("Mostrar bateria", App.ShowBattery, true, App.SetBattery));
+            m.Items.Add(Item("Iniciar com o Windows", App.StartsWithWindows, true, App.SetStartup));
+            m.Items.Add(new Separator());
             var quit = new MenuItem { Header = "Fechar" };
-            quit.Click += (_, __) => Application.Current.Shutdown();
-            m.Items.Add(free); m.Items.Add(behind); m.Items.Add(new Separator()); m.Items.Add(bat); m.Items.Add(auto); m.Items.Add(new Separator()); m.Items.Add(quit);
-            m.Opened += (_, __) => menuOpen = true;
-            m.Opened += (_, __) => HookMouse();
+            quit.Click += (_, __) => App.Quit();
+            m.Items.Add(quit);
+            m.Opened += (_, __) => { menuOpen = true; HookMouse(); };
             m.Closed += (_, __) => { menuOpen = false; UnhookMouse(); };
             openMenu = m; menuOpen = true; m.IsOpen = true;
         }
@@ -323,18 +334,6 @@ namespace MiniPlayer
             catch { return Colors.White; }
         }
 
-        static void ToggleStartup(string lnk, bool on)
-        {
-            try
-            {
-                if (!on) { File.Delete(lnk); return; }
-                var exe = Environment.ProcessPath;
-                var sh = Activator.CreateInstance(Type.GetTypeFromProgID("WScript.Shell"));
-                dynamic sc = sh.GetType().InvokeMember("CreateShortcut", System.Reflection.BindingFlags.InvokeMethod, null, sh, new object[] { lnk });
-                sc.TargetPath = exe; sc.WorkingDirectory = Path.GetDirectoryName(exe); sc.Save();
-            }
-            catch { }
-        }
 
         async Task InitMedia()
         {
