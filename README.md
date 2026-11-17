@@ -22,16 +22,19 @@ Mini player de mídia que se encaixa na barra de tarefas do Windows 10/11, com e
 ## Menu (botão direito no player ou no ícone da bandeja)
 O MiniPlayer também fica com um ícone na bandeja do sistema (perto do relógio; se não aparecer, procure na seta **^**). Ele tem as mesmas opções do menu do player.
 
-| Opção | O que faz |
-|---|---|
-| **Soltar (arrastar livremente)** | Desprende o player da barra: arraste-o para qualquer lugar da tela. A posição é lembrada. Desmarque para fixá-lo de volta na barra de tarefas. |
-| **Manter atrás das janelas** | Só no modo solto. Marcado: o player fica atrás das janelas, como um widget na área de trabalho. Desmarcado: fica acima de todas as janelas. Ao usar **Win+D** (mostrar a área de trabalho) ou sobre a barra de tarefas, ele continua visível. |
-| **Ocultar player (só baterias)** | Esconde os controles de mídia e deixa só os indicadores de bateria. |
-| **Temas** | 10 temas de cores (Padrão, Escuro, Claro, Neon, Pôr do sol, Oceano, Floresta, Púrpura, Rubi, Alto contraste). |
-| **Solto na vertical** | Só no modo solto: deixa o player em coluna (botões, capa e baterias empilhados). |
-| **Mostrar bateria** | Mostra ou esconde os indicadores de bateria. O player e a bateria não podem ficar ocultos ao mesmo tempo. |
-| **Iniciar com o Windows** | Abre o MiniPlayer automaticamente ao ligar o PC. |
-| **Fechar** | Encerra o MiniPlayer. |
+| Menu | Opção | O que faz |
+|---|---|---|
+| **Posição** | Fixo na barra de tarefas | Encaixa o player na barra (padrão). |
+| | Solto na tela (arrastar) | Desprende o player: arraste-o para onde quiser. A posição é lembrada. |
+| | Layout vertical (solto) | ✓ = player solto em coluna (botões, capa e baterias empilhados). |
+| | Atrás das janelas (solto) | ✓ = fica atrás das janelas, como um widget da área de trabalho. Sobre a barra de tarefas e no **Win+D** ele continua visível. |
+| **Exibir** | Controles de mídia | ✓ = mostra botões, capa, título e espectro. |
+| | Bateria dos dispositivos | ✓ = mostra os indicadores de bateria. Um dos dois sempre fica visível. |
+| **Tema** | 10 opções | Cores do player: Padrão, Escuro, Claro, Neon, Pôr do sol, Oceano, Floresta, Púrpura, Rubi e Alto contraste. |
+| | Iniciar com o Windows | ✓ = abre o MiniPlayer ao ligar o PC. |
+| | Encerrar MiniPlayer | Fecha o app. |
+
+Em todas as opções, **✓ significa ativado**; nas escolhas de posição e tema, o ✓ indica a opção atual.
 
 ## Posição na barra de tarefas (modo fixo)
 O encaixe segue o alinhamento da barra do Windows (*Configurações → Personalização → Barra de tarefas → Comportamentos → Alinhamento*):

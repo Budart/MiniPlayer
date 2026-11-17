@@ -169,36 +169,8 @@ namespace MiniPlayer
             try
             {
                 var menu = new System.Windows.Forms.ContextMenuStrip();
-                System.Windows.Forms.ToolStripMenuItem Item(string text, Func<bool> state, Action<bool> act, Func<bool> enabled = null)
-                {
-                    var i = new System.Windows.Forms.ToolStripMenuItem(text) { CheckOnClick = true };
-                    i.Click += (_, __) => act(i.Checked);
-                    menu.Opening += (_, __) => { i.Checked = state(); i.Enabled = enabled?.Invoke() ?? true; };
-                    return i;
-                }
-                menu.Items.Add(Item("Soltar (arrastar livremente)", () => Floating, on =>
-                {
-                    var w = players.Values.FirstOrDefault();
-                    SetFloating(on, w?.Left ?? 200, (w?.Top ?? 260) - 60);
-                }));
-                menu.Items.Add(Item("Manter atrás das janelas", () => FloatBehind, SetBehind, () => Floating));
-                menu.Items.Add(Item("Solto na vertical", () => FloatVertical, SetFloatVertical, () => Floating));
-                menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
-                menu.Items.Add(Item("Ocultar player (só baterias)", () => HidePlayer, SetHidePlayer, () => ShowBattery));
-                menu.Items.Add(Item("Mostrar bateria", () => ShowBattery, SetBattery, () => !HidePlayer));
-                var temas = new System.Windows.Forms.ToolStripMenuItem("Temas");
-                for (int t = 0; t < Themes.Length; t++)
-                {
-                    int idx = t;
-                    var ti = new System.Windows.Forms.ToolStripMenuItem(Themes[t].Name);
-                    ti.Click += (_, __) => SetTheme(idx);
-                    temas.DropDownOpening += (_, __) => ti.Checked = Theme == idx;
-                    temas.DropDownItems.Add(ti);
-                }
-                menu.Items.Add(temas);
-                menu.Items.Add(Item("Iniciar com o Windows", () => StartsWithWindows, SetStartup));
-                menu.Items.Add(new System.Windows.Forms.ToolStripSeparator());
-                menu.Items.Add("Fechar", null, (_, __) => Quit());
+                menu.Items.Add(new System.Windows.Forms.ToolStripSeparator()); // placeholder: o conteúdo é montado ao abrir
+                menu.Opening += (_, e) => { AppMenu.FillTray(menu.Items, AppMenu.Build(null)); e.Cancel = false; };
                 tray = new System.Windows.Forms.NotifyIcon
                 {
                     Icon = System.Drawing.Icon.ExtractAssociatedIcon(Environment.ProcessPath),

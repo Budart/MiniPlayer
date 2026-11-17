@@ -299,33 +299,7 @@ namespace MiniPlayer
         // Menu do botão direito: as mesmas opções do ícone da bandeja (ações centralizadas no App)
         void ShowMenu()
         {
-            var m = new ContextMenu();
-            MenuItem Item(string text, bool check, bool enabled, Action<bool> act)
-            {
-                var i = new MenuItem { Header = text, IsCheckable = true, IsChecked = check, IsEnabled = enabled };
-                i.Click += (_, __) => act(i.IsChecked);
-                return i;
-            }
-            m.Items.Add(Item("Soltar (arrastar livremente)", App.Floating, true, on => App.SetFloating(on, Left, Top - 60)));
-            m.Items.Add(Item("Manter atrás das janelas", App.FloatBehind, App.Floating, App.SetBehind));
-            m.Items.Add(Item("Solto na vertical", App.FloatVertical, App.Floating, App.SetFloatVertical));
-            m.Items.Add(new Separator());
-            m.Items.Add(Item("Ocultar player (só baterias)", App.HidePlayer, App.ShowBattery, App.SetHidePlayer));
-            m.Items.Add(Item("Mostrar bateria", App.ShowBattery, !App.HidePlayer, App.SetBattery));
-            var temas = new MenuItem { Header = "Temas" };
-            for (int t = 0; t < App.Themes.Length; t++)
-            {
-                int idx = t;
-                var ti = new MenuItem { Header = App.Themes[t].Name, IsCheckable = true, IsChecked = App.Theme == idx };
-                ti.Click += (_, __) => App.SetTheme(idx);
-                temas.Items.Add(ti);
-            }
-            m.Items.Add(temas);
-            m.Items.Add(Item("Iniciar com o Windows", App.StartsWithWindows, true, App.SetStartup));
-            m.Items.Add(new Separator());
-            var quit = new MenuItem { Header = "Fechar" };
-            quit.Click += (_, __) => App.Quit();
-            m.Items.Add(quit);
+            var m = AppMenu.ToWpf(AppMenu.Build(this));
             m.Opened += (_, __) => { menuOpen = true; HookMouse(); };
             m.Closed += (_, __) => { menuOpen = false; UnhookMouse(); };
             openMenu = m; menuOpen = true; m.IsOpen = true;
