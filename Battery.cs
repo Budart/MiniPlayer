@@ -128,7 +128,7 @@ namespace MiniPlayer
                             chg = (v & 0x10) != 0;
                             pct = chg ? Math.Min(100, lvl * 100 / 11) : Math.Min(100, lvl * 10 + 5);
                         }
-                        var nb = new BtBattery(ds5 ? "DualSense" : "DualShock 4", pct, "", chg || !r.Bt);
+                        var nb = new BtBattery(ds5 ? "DualSense" : "DualShock 4", pct, ds5 ? "ds5" : "ds4", chg || !r.Bt);
                         if (r.Last == null || r.Last.Percent != nb.Percent || r.Last.Charging != nb.Charging) { r.Last = nb; App.Kick(); }
                     }
                 }
