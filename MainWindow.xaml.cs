@@ -18,7 +18,6 @@ namespace MiniPlayer
 {
     public partial class MainWindow : Window
     {
-        [DllImport("user32.dll")] static extern IntPtr FindWindow(string c, string w);
         [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr h, out RECT r);
         [DllImport("user32.dll")] static extern bool SetWindowPos(IntPtr h, IntPtr a, int x, int y, int cx, int cy, uint f);
         [DllImport("user32.dll")] static extern int GetWindowLong(IntPtr h, int i);
@@ -139,7 +138,7 @@ namespace MiniPlayer
         int cachedAnchor; DateTime anchorTime;
         int RightItemsLeft(RECT r, double s)
         {
-            if ((DateTime.Now - anchorTime).TotalSeconds < 2 && cachedAnchor > 0) return cachedAnchor;
+            if ((DateTime.Now - anchorTime).TotalSeconds < 5 && cachedAnchor > 0) return cachedAnchor;
             anchorTime = DateTime.Now;
             int best = r.R - (int)(120 * s), mid = (r.L + r.R) / 2;
             try
@@ -252,20 +251,30 @@ namespace MiniPlayer
         readonly float[] shown = new float[App.Bands];
         void SetupSpectrum()
         {
+            // barras escaladas por transformação (não recalcula layout a cada quadro)
+            var scales = new ScaleTransform[App.Bands];
             for (int i = 0; i < App.Bands; i++)
-                Spectrum.Children.Add(new Rectangle { Fill = accent, Margin = new Thickness(1, 0, 1, 0), VerticalAlignment = VerticalAlignment.Bottom, Height = 0, RadiusX = 1, RadiusY = 1 });
+            {
+                scales[i] = new ScaleTransform(1, 0);
+                Spectrum.Children.Add(new Rectangle { Fill = accent, Margin = new Thickness(1, 0, 1, 0), RadiusX = 1, RadiusY = 1,
+                    RenderTransformOrigin = new Point(0.5, 1), RenderTransform = scales[i] });
+            }
+            bool idle = true;
             var t = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromMilliseconds(33) };
             t.Tick += (_, __) =>
             {
                 if (!IsVisible) return;
                 bool live = (DateTime.Now - App.LastAudio).TotalMilliseconds < 200;
-                double h = Spectrum.ActualHeight;
+                if (!live && idle) return; // silêncio: não redesenha nada
+                bool any = false;
                 for (int i = 0; i < App.Bands; i++)
                 {
                     float target = live ? App.Levels[i] : 0;
                     shown[i] = target > shown[i] ? target : shown[i] * 0.85f; // sobe rápido, desce suave
-                    ((Rectangle)Spectrum.Children[i]).Height = Math.Max(0, shown[i] * h);
+                    if (shown[i] < 0.005f) shown[i] = 0; else any = true;
+                    scales[i].ScaleY = shown[i];
                 }
+                idle = !live && !any;
             };
             t.Start();
             Closed += (_, __) => t.Stop();

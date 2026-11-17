@@ -9,76 +9,181 @@ namespace MiniPlayer
 {
     public record BtBattery(string Name, int Percent, string Glyph, bool Charging = false);
 
-    // Lê bateria de dispositivos Bluetooth: o que o Windows informa (fones, Xbox, teclados...)
-    // + leitura direta de controles PlayStation (DualSense / DualShock 4), que o Windows não informa
+    // Serviço de bateria orientado a eventos: o Windows avisa cada mudança de bateria/conexão,
+    // controles PlayStation são lidos continuamente e protocolos de fabricantes (dongles) são consultados periodicamente.
+    // Snapshot() só monta a lista a partir do que já está em memória (sem E/S), então é barato.
     static class BatteryReader
     {
         const string BattKey = "{104EA319-6EE2-4701-BD47-8DDBF425BBE5} 2";
         const string ContainerKey = "System.Devices.ContainerId";
         const string HwKey = "System.Devices.HardwareIds";
+        const string AepConnected = "System.Devices.Aep.IsConnected", AepContainer = "System.Devices.Aep.ContainerId";
 
-        public static async Task<List<BtBattery>> ReadAll()
+        public static event Action Changed;
+        static readonly object gate = new();
+        static readonly Dictionary<string, DeviceInformation> winDevs = new();        // nós com bateria informada pelo Windows
+        static readonly Dictionary<string, DeviceInformation> aeps = new();           // dispositivos Bluetooth pareados
+        static readonly Dictionary<string, (string name, string cat)> containers = new();
+        static Dictionary<string, string> hidKinds = new();
+        static List<BtBattery> protoList = new();
+        static System.Threading.Timer debounce;
+        static TaskCompletionSource<bool> protoKick = new();
+        static bool started;
+
+        static void Notify() => debounce?.Change(120, System.Threading.Timeout.Infinite); // agrupa rajadas de eventos
+
+        public static void Start()
         {
-            var res = new List<BtBattery>();
-            var seen = new HashSet<string>();
-            try
+            if (started) return; started = true;
+            debounce = new System.Threading.Timer(_ => Changed?.Invoke());
+
+            // bateria informada pelo Windows (fones, Xbox, teclados/mouses BLE...): atualizações chegam em tempo real
+            var w = DeviceInformation.CreateWatcher("", new[] { BattKey, ContainerKey, HwKey }, DeviceInformationKind.Device);
+            w.Added += (_, d) => { if (HasBatt(d)) Track(d); };
+            w.Updated += (_, u) =>
             {
-                var hidKinds = await HidContainers();
-                var devs = await DeviceInformation.FindAllAsync("", new[] { BattKey, ContainerKey, HwKey }, DeviceInformationKind.Device);
-                foreach (var d in devs)
-                {
-                    if (!d.Properties.TryGetValue(BattKey, out var b) || b == null) continue;
-                    int pct = Convert.ToInt32(b);
-                    var cid = d.Properties.TryGetValue(ContainerKey, out var c) && c != null ? c.ToString() : d.Id;
-                    if (!seen.Add(cid)) continue;
-                    string name = d.Name, category = "";
-                    try
-                    {
-                        var ct = await DeviceInformation.CreateFromIdAsync("{" + cid + "}", new[] { "System.Devices.Connected", "System.Devices.Category" }, DeviceInformationKind.DeviceContainer);
-                        if (ct.Properties.TryGetValue("System.Devices.Connected", out var con) && con is bool on && !on) continue;
-                        if (!string.IsNullOrEmpty(ct.Name)) name = ct.Name;
-                        if (ct.Properties.TryGetValue("System.Devices.Category", out var cat) && cat is string[] cats)
-                            category = string.Join(";", cats).ToLowerInvariant();
-                    }
-                    catch { }
-                    var ids = d.Properties.TryGetValue(HwKey, out var h) && h is string[] arr ? string.Join(";", arr).ToLowerInvariant() : "";
-                    // 1º: o tipo que o próprio Windows registra (controlador de jogo, teclado, mouse) — vale para qualquer marca/idioma
-                    string kind = hidKinds.TryGetValue(cid, out var hk) ? (KindFromIds(ids) ?? hk) : KindFromIds(ids) ?? Kind(name, "bt");
-                    // categoria do Windows (ex.: "Input.Gaming") quando o nome não diz o que é
-                    if (kind == "bt") kind = category.Contains("gam") ? "pad" : category.Contains("audio") || category.Contains("headphone") || category.Contains("headset") ? "head"
-                        : category.Contains("keyboard") ? "kbd" : category.Contains("mouse") ? "mouse" : "bt";
-                    // controle PlayStation já lido direto (mais preciso e em tempo real): não repete
-                    if ((kind == "ds5" || kind == "ds4") && PsActive(kind)) continue;
-                    res.Add(new BtBattery(name, Math.Clamp(pct, 0, 100), kind));
-                }
-            }
-            catch { }
-            try { res.AddRange(ReadPlayStation()); } catch { }
-            try { res.AddRange(Protocols.ReadAll()); } catch { }
-            return res.GroupBy(x => x.Name.ToLowerInvariant()).Select(g => g.First()).ToList();
-        }
+                lock (gate)
+                    if (winDevs.TryGetValue(u.Id, out var d)) { d.Update(u); if (!HasBatt(d)) winDevs.Remove(u.Id); Notify(); return; }
+                if (u.Properties.ContainsKey(BattKey)) _ = AddById(u.Id);
+            };
+            w.Removed += (_, u) => { bool r; lock (gate) r = winDevs.Remove(u.Id); if (r) Notify(); };
+            w.Start();
 
-        // Controles PlayStation: uma leitura contínua por controle (tempo real), iniciada assim que o controle aparece
-        sealed class PsReader { public bool Bt; public volatile BtBattery Last; }
-        static readonly Dictionary<string, PsReader> readers = new();
-        static bool watching;
-
-        public static void StartWatching()
-        {
-            if (watching) return; watching = true;
-            DeviceList.Local.Changed += (_, __) => { EnsureReaders(); App.Kick(); };
             // conexão/desconexão Bluetooth instantânea
             foreach (var sel in new[] { Windows.Devices.Bluetooth.BluetoothDevice.GetDeviceSelectorFromPairingState(true),
                                         Windows.Devices.Bluetooth.BluetoothLEDevice.GetDeviceSelectorFromPairingState(true) })
             {
-                var w = DeviceInformation.CreateWatcher(sel, new[] { "System.Devices.Aep.IsConnected" }, DeviceInformationKind.AssociationEndpoint);
-                w.Updated += (_, __) => App.Kick();
-                w.Removed += (_, __) => App.Kick();
-                w.Start();
+                var aw = DeviceInformation.CreateWatcher(sel, new[] { AepConnected, AepContainer }, DeviceInformationKind.AssociationEndpoint);
+                aw.Added += (_, d) => { lock (gate) aeps[d.Id] = d; Notify(); };
+                aw.Updated += (_, u) => { lock (gate) if (aeps.TryGetValue(u.Id, out var d)) d.Update(u); Notify(); ProtoKick(); };
+                aw.Removed += (_, u) => { lock (gate) aeps.Remove(u.Id); Notify(); };
+                aw.Start();
             }
+
+            // USB/HID: controles PlayStation, tipos de dispositivo e protocolos de fabricantes
+            DeviceList.Local.Changed += (_, __) => { EnsureReaders(); _ = RefreshHidKinds(); ProtoKick(); };
             EnsureReaders();
+            _ = RefreshHidKinds();
+            Task.Run(ProtocolLoop);
         }
 
+        static bool HasBatt(DeviceInformation d) => d.Properties.TryGetValue(BattKey, out var b) && b != null;
+
+        static void Track(DeviceInformation d)
+        {
+            lock (gate) winDevs[d.Id] = d;
+            _ = EnsureContainer(Cid(d));
+            Notify();
+        }
+
+        static async Task AddById(string id)
+        {
+            try { var d = await DeviceInformation.CreateFromIdAsync(id, new[] { BattKey, ContainerKey, HwKey }, DeviceInformationKind.Device); if (HasBatt(d)) Track(d); } catch { }
+        }
+
+        static string Cid(DeviceInformation d) => d.Properties.TryGetValue(ContainerKey, out var c) && c != null ? c.ToString() : d.Id;
+
+        // nome e categoria do "aparelho" (container), buscados uma vez e guardados
+        static async Task EnsureContainer(string cid)
+        {
+            lock (gate) if (containers.ContainsKey(cid)) return;
+            string name = null, cat = "";
+            try
+            {
+                var ct = await DeviceInformation.CreateFromIdAsync("{" + cid + "}", new[] { "System.Devices.Category" }, DeviceInformationKind.DeviceContainer);
+                name = ct.Name;
+                if (ct.Properties.TryGetValue("System.Devices.Category", out var c) && c is string[] cats) cat = string.Join(";", cats).ToLowerInvariant();
+            }
+            catch { }
+            lock (gate) containers[cid] = (name, cat);
+            Notify();
+        }
+
+        // Mapa ContainerId -> tipo, pelas interfaces HID que o Windows classifica como joystick/gamepad, teclado ou mouse
+        static async Task RefreshHidKinds()
+        {
+            var map = new Dictionary<string, string>();
+            var kinds = new (ushort page, ushort id, string kind)[] { (0x01, 0x02, "mouse"), (0x01, 0x06, "kbd"), (0x01, 0x04, "pad"), (0x01, 0x05, "pad"), (0x01, 0x08, "pad") };
+            foreach (var (page, id, kind) in kinds)
+            {
+                try
+                {
+                    var sel = Windows.Devices.HumanInterfaceDevice.HidDevice.GetDeviceSelector(page, id);
+                    foreach (var di in await DeviceInformation.FindAllAsync(sel, new[] { ContainerKey }))
+                        if (di.Properties.TryGetValue(ContainerKey, out var c) && c != null) map[c.ToString()] = kind; // controle sobrescreve teclado/mouse
+                }
+                catch { }
+            }
+            hidKinds = map;
+            Notify();
+        }
+
+        static void ProtoKick() => protoKick.TrySetResult(true);
+
+        static async Task ProtocolLoop()
+        {
+            while (true)
+            {
+                protoKick = new();
+                if (App.ShowBattery)
+                {
+                    try
+                    {
+                        var l = Protocols.ReadAll();
+                        if (!l.SequenceEqual(protoList)) { protoList = l; Notify(); }
+                    }
+                    catch { }
+                }
+                await Task.WhenAny(Task.Delay(30000), protoKick.Task);
+                await Task.Delay(500);
+            }
+        }
+
+        // Monta a lista atual a partir da memória
+        public static List<BtBattery> Snapshot()
+        {
+            var res = new List<BtBattery>();
+            var seen = new HashSet<string>();
+            var hk = hidKinds;
+            List<DeviceInformation> devs;
+            var offline = new HashSet<string>();
+            lock (gate)
+            {
+                devs = winDevs.Values.ToList();
+                foreach (var a in aeps.Values)
+                    if (a.Properties.TryGetValue(AepConnected, out var on) && on is bool b && !b && a.Properties.TryGetValue(AepContainer, out var c) && c != null)
+                        offline.Add(c.ToString());
+            }
+            foreach (var d in devs)
+            {
+                try
+                {
+                    var cid = Cid(d);
+                    if (offline.Contains(cid) || !seen.Add(cid)) continue;
+                    int pct = Math.Clamp(Convert.ToInt32(d.Properties[BattKey]), 0, 100);
+                    (string name, string cat) ct;
+                    lock (gate) containers.TryGetValue(cid, out ct);
+                    string name = string.IsNullOrEmpty(ct.name) ? d.Name : ct.name, cat = ct.cat ?? "";
+                    var ids = d.Properties.TryGetValue(HwKey, out var h) && h is string[] arr ? string.Join(";", arr).ToLowerInvariant() : "";
+                    // tipo: 1) VID/PID conhecido  2) classificação HID do Windows  3) categoria do aparelho  4) nome
+                    string kind = KindFromIds(ids) ?? (hk.TryGetValue(cid, out var k) ? k : null) ?? KindFromCategory(cat) ?? Kind(name, "bt");
+                    if ((kind == "ds5" || kind == "ds4") && PsActive(kind)) continue; // já lido direto, com mais precisão
+                    res.Add(new BtBattery(name, pct, kind));
+                }
+                catch { }
+            }
+            try { res.AddRange(ReadPlayStation()); } catch { }
+            res.AddRange(protoList);
+            return res.GroupBy(x => x.Name.ToLowerInvariant()).Select(g => g.First()).OrderBy(x => x.Name).ToList();
+        }
+
+        static string KindFromCategory(string cat) =>
+            cat.Contains("gam") ? "pad" : cat.Contains("headphone") || cat.Contains("headset") || cat.Contains("audio") ? "head"
+            : cat.Contains("keyboard") ? "kbd" : cat.Contains("mouse") ? "mouse" : null;
+
+        // Controles PlayStation: uma leitura contínua por controle (tempo real), iniciada assim que o controle aparece
+        sealed class PsReader { public bool Bt; public volatile BtBattery Last; }
+        static readonly Dictionary<string, PsReader> readers = new();
         static void EnsureReaders()
         {
             try
@@ -129,12 +234,12 @@ namespace MiniPlayer
                             pct = chg ? Math.Min(100, lvl * 100 / 11) : Math.Min(100, lvl * 10 + 5);
                         }
                         var nb = new BtBattery(ds5 ? "DualSense" : "DualShock 4", pct, ds5 ? "ds5" : "ds4", chg || !r.Bt);
-                        if (r.Last == null || r.Last.Percent != nb.Percent || r.Last.Charging != nb.Charging) { r.Last = nb; App.Kick(); }
+                        if (r.Last == null || r.Last.Percent != nb.Percent || r.Last.Charging != nb.Charging) { r.Last = nb; Notify(); }
                     }
                 }
             }
             catch { }
-            finally { lock (readers) readers.Remove(dev.DevicePath); App.Kick(); }
+            finally { lock (readers) readers.Remove(dev.DevicePath); Notify(); }
         }
 
         static IEnumerable<BtBattery> ReadPlayStation()
@@ -148,25 +253,6 @@ namespace MiniPlayer
                 if (dup.b != null) list.Remove(dup);
             }
             return list.Select(x => x.b);
-        }
-
-        // Mapa ContainerId -> tipo, a partir das interfaces HID que o Windows classifica como joystick/gamepad, teclado ou mouse
-        static async Task<Dictionary<string, string>> HidContainers()
-        {
-            var map = new Dictionary<string, string>();
-            var kinds = new (ushort page, ushort id, string kind)[] { (0x01, 0x02, "mouse"), (0x01, 0x06, "kbd"), (0x01, 0x04, "pad"), (0x01, 0x05, "pad"), (0x01, 0x08, "pad") };
-            foreach (var (page, id, kind) in kinds)
-            {
-                try
-                {
-                    var sel = Windows.Devices.HumanInterfaceDevice.HidDevice.GetDeviceSelector(page, id);
-                    foreach (var di in await DeviceInformation.FindAllAsync(sel, new[] { ContainerKey }))
-                        if (di.Properties.TryGetValue(ContainerKey, out var c) && c != null)
-                            map[c.ToString()] = kind; // controle sobrescreve teclado/mouse (alguns controles expõem ambos)
-                }
-                catch { }
-            }
-            return map;
         }
 
         static bool PsActive(string kind)
