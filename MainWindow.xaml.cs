@@ -156,6 +156,13 @@ namespace MiniPlayer
             if (App.Floating)
             {
                 SetVertical(App.FloatVertical, 56);
+                // solto na horizontal: altura pelo conteúdo (título + artista + progresso) com folga, nunca cortando o texto
+                if (!App.FloatVertical)
+                {
+                    if (SizeToContent != SizeToContent.WidthAndHeight) SizeToContent = SizeToContent.WidthAndHeight;
+                    var pad = new Thickness(6, 5, 6, 5); if (Root.Padding != pad) Root.Padding = pad;
+                }
+                else { var vpad = new Thickness(4, 0, 4, 0); if (Root.Padding != vpad) Root.Padding = vpad; }
                 if (Math.Abs(Left - App.FloatX) > 1 || Math.Abs(Top - App.FloatY) > 1) { Left = App.FloatX; Top = App.FloatY; }
                 if (!dragging) KeepInsideMonitor();
             }
@@ -182,6 +189,8 @@ namespace MiniPlayer
                     return;
                 }
                 SetVertical(false, 0);
+                if (SizeToContent != SizeToContent.Width) SizeToContent = SizeToContent.Width; // fixo: altura = da barra
+                var barPad = new Thickness(4, 0, 4, 0); if (Root.Padding != barPad) Root.Padding = barPad;
                 var hh = (r.B - r.T) / s; if (Math.Abs(Height - hh) > 0.5) Height = hh;
                 int wPx = w.R - w.L, hPx = w.B - w.T, x;
                 if (App.Centered) x = r.L + (int)(8 * s);                       // canto esquerdo da barra
@@ -293,7 +302,7 @@ namespace MiniPlayer
             {
                 // volta ao layout horizontal padrão (também ao soltar o player que estava numa barra vertical)
                 SizeToContent = SizeToContent.Width;
-                if (App.Floating) Height = 40;
+                if (App.Floating) SizeToContent = SizeToContent.WidthAndHeight; // solto: altura pelo conteúdo
                 At(Controls, 0, 0); At(Spectrum, 0, 0); At(ArtBox, 0, 1); At(InfoPanel, 0, 2); At(BatteryPanel, 0, 3);
                 foreach (var e in parts) { Grid.SetColumnSpan(e, 1); Grid.SetRowSpan(e, 1); }
                 Controls.Orientation = Orientation.Horizontal;
