@@ -34,8 +34,11 @@
           </Border>
         </Grid>
       </Border>
-      <StackPanel x:Name="InfoPanel" Grid.Column="2" Margin="8,0" MaxWidth="170" VerticalAlignment="Center" ClipToBounds="True">
-        <TextBlock x:Name="TitleText" TextAlignment="Left" Foreground="White" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+      <!-- campo de texto com largura fixa; o título rola (em loop) ao passar o mouse quando não cabe -->
+      <StackPanel x:Name="InfoPanel" Grid.Column="2" Margin="8,0" Width="150" VerticalAlignment="Center" Background="#01000000">
+        <Canvas x:Name="TitleHost" Height="16" ClipToBounds="True">
+          <TextBlock x:Name="TitleText" Width="150" Foreground="White" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+        </Canvas>
         <TextBlock x:Name="ArtistText" TextAlignment="Left" Foreground="#BBFFFFFF" FontSize="11" TextTrimming="CharacterEllipsis"/>
         <!-- barra de progresso (clique para avançar/voltar) -->
         <Grid x:Name="Progress" Height="7" Margin="0,2,0,0" Background="#01000000" Cursor="Hand" Visibility="Collapsed">

@@ -99,7 +99,7 @@ namespace MiniPlayer
         {
             bar = taskbar; isPrimary = primary;
             InitializeComponent();
-            TitleText.Text = L.S("nothing");
+            SetTitle(L.S("nothing"));
             // antes de exibir: verifica a orientação da barra e já monta o layout certo (vertical/horizontal)
             if (!App.Floating && GetWindowRect(bar, out var br) && (br.B - br.T) > (br.R - br.L))
             {
@@ -375,7 +375,6 @@ namespace MiniPlayer
             PrevBtn.Foreground = PlayBtn.Foreground = NextBtn.Foreground = SwapBtn.Foreground = fg;
             ProgFill.Background = ProgTrack.Background = fg;
             SizeScale.ScaleX = SizeScale.ScaleY = App.SizeScales[App.PlayerSize];
-            Dispatcher.BeginInvoke(new Action(UpdateMarquee), DispatcherPriority.Loaded);
             foreach (Rectangle r in Spectrum.Children) r.Fill = th.Spectrum != null ? B(th.Spectrum) : accent;
             var vis = App.HidePlayer ? Visibility.Collapsed : Visibility.Visible;
             Controls.Visibility = Spectrum.Visibility = ArtBox.Visibility = InfoPanel.Visibility = vis;
@@ -410,7 +409,7 @@ namespace MiniPlayer
         static Color WithA(Color c, byte alpha) => Color.FromArgb(alpha, c.R, c.G, c.B);
 
         // ======== Barra de progresso, volume pela rolagem, letreiro e dicas de bateria ========
-        bool isPlaying, lastPlaying; string lastTitle;
+        bool isPlaying;
 
         void SetupExtras()
         {
@@ -433,8 +432,16 @@ namespace MiniPlayer
             };
             // volume: rolagem do mouse em qualquer parte do player
             Root.MouseWheel += (_, e) => { ChangeVolume(e.Delta > 0 ? 1 : -1); e.Handled = true; };
+            if (isPrimary)
+            {
+                var at = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1500) };
+                at.Tick += (_, __) => AutoPickSource();
+                at.Start();
+                Closed += (_, __) => at.Stop();
+            }
             volTimer.Tick += (_, __) => { volTimer.Stop(); VolBadge.Visibility = Visibility.Collapsed; };
-            InfoPanel.SizeChanged += (_, __) => Dispatcher.BeginInvoke(new Action(UpdateMarquee), DispatcherPriority.Loaded);
+            InfoPanel.MouseEnter += (_, __) => StartMarquee();
+            InfoPanel.MouseLeave += (_, __) => ResetTitle();
         }
 
         void MoveProgress(bool toVertical)
@@ -505,25 +512,31 @@ namespace MiniPlayer
             catch { }
         }
 
-        // Título longo: rola devagar de um lado para o outro (só enquanto toca)
+        // Título: largura fixa com "…"; ao passar o mouse, se não couber, rola em loop infinito para a esquerda
+        const double InfoW = 150;
+        string curTitle = "";
         readonly TranslateTransform titleShift = new();
-        void UpdateMarquee()
+        void SetTitle(string t) { if (t == curTitle && TitleText.Text.Length > 0) return; curTitle = t ?? ""; ResetTitle(); if (InfoPanel.IsMouseOver) StartMarquee(); }
+        void ResetTitle()
         {
             titleShift.BeginAnimation(TranslateTransform.XProperty, null); titleShift.X = 0;
             TitleText.RenderTransform = titleShift;
-            TitleText.ClearValue(WidthProperty); TitleText.HorizontalAlignment = HorizontalAlignment.Stretch;
-            TitleText.TextTrimming = TextTrimming.CharacterEllipsis;
-            if (InfoPanel.Visibility != Visibility.Visible || !isPlaying) return;
-            var probe = new TextBlock { Text = TitleText.Text, FontSize = TitleText.FontSize, FontWeight = TitleText.FontWeight, FontFamily = TitleText.FontFamily };
+            TitleText.Text = curTitle; TitleText.Width = InfoW; TitleText.TextTrimming = TextTrimming.CharacterEllipsis;
+        }
+        double TextWidth(string t)
+        {
+            var probe = new TextBlock { Text = t, FontSize = TitleText.FontSize, FontWeight = TitleText.FontWeight, FontFamily = TitleText.FontFamily };
             probe.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            double need = probe.DesiredSize.Width, avail = InfoPanel.ActualWidth;
-            if (avail <= 0 || need <= avail + 1) return;
-            TitleText.TextTrimming = TextTrimming.None; TitleText.Width = need; TitleText.HorizontalAlignment = HorizontalAlignment.Left;
-            double over = need - avail, move = Math.Max(1.5, over / 25); // ~25 px/s
-            var a = new DoubleAnimationUsingKeyFrames { RepeatBehavior = RepeatBehavior.Forever };
-            double t = 0;
-            void K(double x, double dt) { t += dt; a.KeyFrames.Add(new LinearDoubleKeyFrame(x, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(t)))); }
-            K(0, 0); K(0, 2); K(-over, move); K(-over, 2); K(0, move);
+            return probe.DesiredSize.Width;
+        }
+        void StartMarquee()
+        {
+            if (InfoPanel.Visibility != Visibility.Visible || TextWidth(curTitle) <= InfoW) return;
+            const string gap = "      •      ";
+            double cycle = TextWidth(curTitle + gap);                  // distância até a 2ª cópia ocupar o lugar da 1ª
+            TitleText.TextTrimming = TextTrimming.None; TitleText.ClearValue(WidthProperty);
+            TitleText.Text = curTitle + gap + curTitle;                 // duas cópias: o loop fica contínuo, sem "pulo"
+            var a = new DoubleAnimation(0, -cycle, TimeSpan.FromSeconds(cycle / 30)) { RepeatBehavior = RepeatBehavior.Forever }; // ~30 px/s
             titleShift.BeginAnimation(TranslateTransform.XProperty, a);
         }
 
@@ -689,8 +702,66 @@ namespace MiniPlayer
             }
         }
 
-        // Fonte escolhida pelo usuário (vale para os players de todos os monitores). null = a que o Windows indicar.
+        // Fonte escolhida pelo usuário (vale para os players de todos os monitores). null = automático.
         static string pinnedSource;
+        // Fonte detectada automaticamente: a mídia que está de fato tocando/emitindo som
+        static string autoSource;
+        static readonly System.Collections.Generic.Dictionary<uint, string> procNames = new();
+
+        // A cada 1,5 s (só o player do monitor principal faz a conta, e só com 2+ mídias abertas):
+        // 1) a que está em "tocando"; 2) se houver várias, a que está realmente saindo som no mixer do Windows
+        void AutoPickSource()
+        {
+            try
+            {
+                if (mgr == null || pinnedSource != null) return;
+                var all = mgr.GetSessions().ToArray();
+                if (all.Length < 2) { autoSource = null; return; }
+                var playing = all.Where(x => { try { return x.GetPlaybackInfo().PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing; } catch { return false; } }).ToArray();
+                GlobalSystemMediaTransportControlsSession pick = null;
+                if (playing.Length == 1) pick = playing[0];
+                else if (playing.Length > 1)
+                {
+                    var peaks = Peaks();
+                    float Peak(GlobalSystemMediaTransportControlsSession x)
+                    {
+                        var app = SourceName(x).ToLowerInvariant(); float m = 0;
+                        foreach (var (pn, v) in peaks) if (pn.Length > 1 && (pn.Contains(app) || app.Contains(pn))) m = Math.Max(m, v);
+                        return m;
+                    }
+                    var best = playing.OrderByDescending(Peak).First();
+                    if (Peak(best) > 0.001f) pick = best;
+                }
+                if (pick == null || pick.SourceAppUserModelId == session?.SourceAppUserModelId) return; // nada tocando: mantém o atual
+                autoSource = pick.SourceAppUserModelId;
+                foreach (var w in Application.Current.Windows.OfType<MainWindow>()) w.Hook();
+            }
+            catch { }
+        }
+
+        // Nível de som atual de cada programa no mixer do Windows
+        static System.Collections.Generic.List<(string pn, float v)> Peaks()
+        {
+            var r = new System.Collections.Generic.List<(string, float)>();
+            try
+            {
+                using var dev = devices.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+                var list = dev.AudioSessionManager.Sessions;
+                for (int i = 0; i < list.Count; i++)
+                {
+                    var sc = list[i];
+                    uint pid = sc.GetProcessID;
+                    if (!procNames.TryGetValue(pid, out var pn))
+                    {
+                        try { pn = System.Diagnostics.Process.GetProcessById((int)pid).ProcessName.ToLowerInvariant(); } catch { pn = ""; }
+                        procNames[pid] = pn;
+                    }
+                    r.Add((pn, sc.AudioMeterInformation.MasterPeakValue));
+                }
+            }
+            catch { }
+            return r;
+        }
         void Hook()
         {
             if (mgr == null) return;
@@ -699,7 +770,8 @@ namespace MiniPlayer
             try { all = mgr.GetSessions().ToArray(); } catch { all = Array.Empty<GlobalSystemMediaTransportControlsSession>(); }
             var pinned = pinnedSource == null ? null : all.FirstOrDefault(x => x.SourceAppUserModelId == pinnedSource);
             if (pinned == null) pinnedSource = null; // a fonte escolhida fechou: volta ao automático
-            session = pinned ?? mgr.GetCurrentSession();
+            var auto = autoSource == null ? null : all.FirstOrDefault(x => x.SourceAppUserModelId == autoSource);
+            session = pinned ?? auto ?? mgr.GetCurrentSession();
             if (session != null) { session.MediaPropertiesChanged += OnMedia; session.PlaybackInfoChanged += OnPlay; }
             // botão de troca só aparece com mais de uma fonte
             SwapBtn.Visibility = all.Length > 1 ? Visibility.Visible : Visibility.Collapsed;
@@ -735,15 +807,14 @@ namespace MiniPlayer
 
         async Task Refresh()
         {
-            if (session == null) { isPlaying = false; Progress.Visibility = Visibility.Collapsed; TitleText.Text = L.S("nothing"); ArtistText.Text = ""; Art.Source = null; NoArt.Visibility = Visibility.Visible; PlayBtn.Content = ""; return; }
+            if (session == null) { isPlaying = false; Progress.Visibility = Visibility.Collapsed; SetTitle(L.S("nothing")); ArtistText.Text = ""; Art.Source = null; NoArt.Visibility = Visibility.Visible; PlayBtn.Content = ""; return; }
             try
             {
                 var p = await session.TryGetMediaPropertiesAsync();
-                TitleText.Text = string.IsNullOrEmpty(p.Title) ? L.S("untitled") : p.Title;
+                SetTitle(string.IsNullOrEmpty(p.Title) ? L.S("untitled") : p.Title);
                 ArtistText.Text = p.Artist;
                 var playing = session.GetPlaybackInfo().PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
                 isPlaying = playing;
-                if (TitleText.Text != lastTitle || playing != lastPlaying) { lastTitle = TitleText.Text; lastPlaying = playing; Dispatcher.BeginInvoke(new Action(UpdateMarquee), DispatcherPriority.Loaded); }
                 UpdateProgress();
                 PlayBtn.Content = playing ? "" : "";
                 Art.Source = null; NoArt.Visibility = Visibility.Visible; accent.Color = Colors.White;
