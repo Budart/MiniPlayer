@@ -109,6 +109,9 @@ namespace MiniPlayer
             }
             Loaded += async (_, __) => { Setup(); SetupSpectrum(); SetupExtras(); UpdateBatteries(); await InitMedia(); };
             App.BatteriesChanged += UpdateBatteries;
+            App.BatteriesChanged += UpdateSeparator;
+            SystemMonitor.Updated += OnSysUpdated;
+            Closed += (_, __) => SystemMonitor.Updated -= OnSysUpdated;
             App.LookChanged += ApplyLook;
             Closed += (_, __) => UnhookMouse(); // nunca deixa o gancho de mouse para trás
             Closed += (_, __) => App.LookChanged -= ApplyLook;
@@ -276,15 +279,16 @@ namespace MiniPlayer
             if (on == vertical && (!on || Math.Abs(barWidth - vWidth) < 0.5)) return;
             vertical = on; vWidth = barWidth;
             void At(UIElement e, int row, int col) { Grid.SetRow(e, row); Grid.SetColumn(e, col); }
-            var parts = new UIElement[] { Controls, Spectrum, ArtBox, InfoPanel, BatteryPanel };
+            var parts = new UIElement[] { Controls, Spectrum, ArtBox, InfoPanel, BatteryPanel, SysPanel };
             Layout.RowDefinitions.Clear();
             Layout.ColumnDefinitions.Clear();
-            for (int i = 0; i < 4; i++) Layout.ColumnDefinitions.Add(new ColumnDefinition { Width = on && i == 0 ? new GridLength(1, GridUnitType.Star) : GridLength.Auto });
+            for (int i = 0; i < 5; i++) Layout.ColumnDefinitions.Add(new ColumnDefinition { Width = on && i == 0 ? new GridLength(1, GridUnitType.Star) : GridLength.Auto });
             if (on)
             {
                 SizeToContent = SizeToContent.Height; Width = barWidth;
-                for (int i = 0; i < 4; i++) Layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-                At(Controls, 0, 0); At(Spectrum, 0, 0); At(ArtBox, 1, 0); At(InfoPanel, 2, 0); At(BatteryPanel, 3, 0);
+                for (int i = 0; i < 5; i++) Layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                At(Controls, 0, 0); At(Spectrum, 0, 0); At(ArtBox, 1, 0); At(InfoPanel, 2, 0); At(BatteryPanel, 3, 0); At(SysPanel, 4, 0);
+                SysPanel.Orientation = Orientation.Vertical; SysPanel.HorizontalAlignment = HorizontalAlignment.Center; SysPanel.Margin = new Thickness(0, 0, 0, 8);
                 foreach (var e in parts) { Grid.SetColumnSpan(e, 1); Grid.SetRowSpan(e, 1); }
                 // botões empilhados e "apertadinhos"
                 Controls.Orientation = Orientation.Vertical;
@@ -303,7 +307,8 @@ namespace MiniPlayer
                 // volta ao layout horizontal padrão (também ao soltar o player que estava numa barra vertical)
                 SizeToContent = SizeToContent.Width;
                 if (App.Floating) SizeToContent = SizeToContent.WidthAndHeight; // solto: altura pelo conteúdo
-                At(Controls, 0, 0); At(Spectrum, 0, 0); At(ArtBox, 0, 1); At(InfoPanel, 0, 2); At(BatteryPanel, 0, 3);
+                At(Controls, 0, 0); At(Spectrum, 0, 0); At(ArtBox, 0, 1); At(InfoPanel, 0, 2); At(BatteryPanel, 0, 3); At(SysPanel, 0, 4);
+                SysPanel.Orientation = Orientation.Horizontal; SysPanel.ClearValue(HorizontalAlignmentProperty); SysPanel.Margin = new Thickness(0, 0, 4, 0);
                 foreach (var e in parts) { Grid.SetColumnSpan(e, 1); Grid.SetRowSpan(e, 1); }
                 Controls.Orientation = Orientation.Horizontal;
                 foreach (var btn in new[] { PrevBtn, PlayBtn, NextBtn, SwapBtn }) btn.ClearValue(HeightProperty);
@@ -315,6 +320,7 @@ namespace MiniPlayer
                 foreach (UIElement r in Spectrum.Children) r.Visibility = Visibility.Visible;
             }
             UpdateBatteries();
+            RebuildSystem();
             if (dynBgGrad != null) dynBgGrad.EndPoint = vertical ? new Point(0, 1) : new Point(1, 0);
             if (IsLoaded) ApplyLook();
         }
@@ -393,6 +399,7 @@ namespace MiniPlayer
             PrevBtn.Foreground = PlayBtn.Foreground = NextBtn.Foreground = SwapBtn.Foreground = fg; SwapIcon.Stroke = fg;
             ProgFill.Background = ProgTrack.Background = fg;
             SizeScale.ScaleX = SizeScale.ScaleY = App.SizeScales[App.PlayerSize];
+            RebuildSystem();
             // tema Claro: espectro na cor da capa escurecida e mais opaco (no fundo claro a cor original fica apagada)
             bool light = App.Theme == 2;
             Spectrum.Opacity = light ? 0.6 : 0.28;
@@ -589,6 +596,61 @@ namespace MiniPlayer
             titleShift.BeginAnimation(TranslateTransform.XProperty, a);
         }
 
+        // ======== Monitor do sistema ========
+        // ladrilhos criados uma vez (ao mudar opções/tema/layout); a cada 2 s só os números são atualizados
+        readonly System.Collections.Generic.List<(int bit, TextBlock val)> sysTiles = new();
+        Border sysSep;
+        void RebuildSystem()
+        {
+            SysPanel.Children.Clear(); sysTiles.Clear();
+            SysPanel.Visibility = App.ShowSystem ? Visibility.Visible : Visibility.Collapsed;
+            if (!App.ShowSystem) return;
+            // separador sutil entre o monitor e o que vem antes (player/baterias)
+            sysSep = new Border { Background = fg, Opacity = 0.3, Width = vertical ? 24 : 1, Height = vertical ? 1 : 24,
+                Margin = vertical ? new Thickness(0, 6, 0, 0) : new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
+            SysPanel.Children.Add(sysSep);
+            foreach (var (bit, icon, key) in new[] { (1, "ram", "ram"), (2, "cpu", "cpu"), (4, "temp", "cputemp"), (8, "gpu", "gpu"), (16, "temp", "gputemp") })
+            {
+                if (!App.SysOn(bit)) continue;
+                var col = new StackPanel { Orientation = Orientation.Vertical, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = vertical ? new Thickness(0, 6, 0, 0) : new Thickness(8, 0, 0, 0), Background = Brushes.Transparent };
+                col.Children.Add(new System.Windows.Shapes.Path { Data = IconGeometry(icon), Stroke = fg, StrokeThickness = 1.4,
+                    StrokeLineJoin = PenLineJoin.Round, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round,
+                    Width = 22, Height = 16, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Center, SnapsToDevicePixels = true });
+                var val = new TextBlock { Text = "--", FontSize = 10, HorizontalAlignment = HorizontalAlignment.Center, Foreground = fg };
+                col.Children.Add(val);
+                string name = L.S(key); int b = bit;
+                col.ToolTip = name;
+                col.ToolTipOpening += (_, __) => { var v = SysValue(b); col.ToolTip = v < 0 ? $"{name}: {L.S("na")}" : $"{name}: {SysText(b, v)}"; };
+                SysPanel.Children.Add(col);
+                sysTiles.Add((bit, val));
+            }
+            UpdateSeparator();
+            UpdateSystemValues();
+        }
+        static int SysValue(int bit) => bit switch { 1 => SystemMonitor.Ram, 2 => SystemMonitor.Cpu, 4 => SystemMonitor.CpuTemp, 8 => SystemMonitor.Gpu, _ => SystemMonitor.GpuTemp };
+        static string SysText(int bit, int v) => bit is 4 or 16 ? v + "°C" : v + "%";
+        void OnSysUpdated() => Dispatcher.BeginInvoke(new Action(UpdateSystemValues));
+        void UpdateSystemValues()
+        {
+            foreach (var (bit, val) in sysTiles)
+            {
+                int v = SysValue(bit);
+                string t = v < 0 ? "--" : SysText(bit, v);
+                if (val.Text != t) val.Text = t;
+                bool hot = v >= 0 && (bit is 4 or 16 ? v >= 85 : v >= 90); // alerta: uso ≥ 90% ou ≥ 85 °C
+                var want = hot ? Brushes.OrangeRed : fg;
+                if (val.Foreground != want) val.Foreground = want;
+            }
+        }
+        // separador só aparece se houver algo antes do monitor
+        void UpdateSeparator() => Dispatcher.BeginInvoke(new Action(() =>
+        {
+            if (sysSep == null) return;
+            bool before = !App.HidePlayer || (App.ShowBattery && BatteryPanel.Children.Count > 0);
+            sysSep.Visibility = before ? Visibility.Visible : Visibility.Collapsed;
+        }));
+
         // Dica ao passar o mouse na bateria: nome, %, carregando ou tempo restante estimado
         static string BatteryTip(BtBattery b)
         {
@@ -661,6 +723,10 @@ namespace MiniPlayer
             ["spk"] = "M6,3 H18 A1.5,1.5 0 0 1 19.5,4.5 V19.5 A1.5,1.5 0 0 1 18,21 H6 A1.5,1.5 0 0 1 4.5,19.5 V4.5 A1.5,1.5 0 0 1 6,3 Z " + Circ(12, 14.5, 3.5) + Circ(12, 7.5, 1.3),
             ["kbd"] = "M3,6 H21 A1.5,1.5 0 0 1 22.5,7.5 V16.5 A1.5,1.5 0 0 1 21,18 H3 A1.5,1.5 0 0 1 1.5,16.5 V7.5 A1.5,1.5 0 0 1 3,6 Z M5,9.5 H6 M8,9.5 H9 M11,9.5 H12 M14,9.5 H15 M17,9.5 H19 M5,12.5 H6.5 M9,12.5 H10 M12,12.5 H13 M15.5,12.5 H19 M7.5,15 H16.5",
             ["mouse"] = "M12,2.5 C8,2.5 6,5.5 6,9 V15 C6,18.8 8.6,21.5 12,21.5 C15.4,21.5 18,18.8 18,15 V9 C18,5.5 16,2.5 12,2.5 Z M6,10 H18 M12,2.5 V10 M12,5 V7.5",
+            ["ram"] = "M3,8 H21 V16 H3 Z M6,16 V19 M10,16 V19 M14,16 V19 M18,16 V19 M6,11 H8 V13 H6 Z M11,11 H13 V13 H11 Z M16,11 H18 V13 H16 Z",
+            ["cpu"] = "M7,7 H17 V17 H7 Z M10,10 H14 V14 H10 Z M9,3 V7 M12,3 V7 M15,3 V7 M9,17 V21 M12,17 V21 M15,17 V21 M3,9 H7 M3,12 H7 M3,15 H7 M17,9 H21 M17,12 H21 M17,15 H21",
+            ["gpu"] = "M2,6 H21 V16 H2 Z M5,16 V19 H12 V16 M21,8 H23 " + Circ(8, 11, 2.6) + Circ(15, 11, 2.6),
+            ["temp"] = "M10,4 A2,2 0 0 1 14,4 V13.6 A4,4 0 1 1 10,13.6 Z M12,9 V16.5",
             ["bt"] = "M7,7.5 L17,16.5 L12,21 V3 L17,7.5 L7,16.5",
         };
 

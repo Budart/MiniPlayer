@@ -24,6 +24,19 @@ namespace MiniPlayer
         static readonly string Cfg = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "MiniPlayer.txt");
         public static bool Floating, ShowBattery = true, FloatBehind, HidePlayer, FloatVertical, FloatLocked;
         public static bool VolumeHintDone;
+        // Monitor do sistema: itens = bits (1 RAM, 2 CPU, 4 temp. CPU, 8 GPU, 16 temp. GPU)
+        public static bool ShowSystem;
+        public static int SysItems = 1 | 2 | 8;
+        public static bool SysOn(int bit) => (SysItems & bit) != 0;
+        // grupos visíveis (player, bateria, monitor): pelo menos um precisa ficar ligado
+        public static int VisibleGroups => (HidePlayer ? 0 : 1) + (ShowBattery ? 1 : 0) + (ShowSystem ? 1 : 0);
+        public static void SetSystem(bool on) { if (!on && VisibleGroups <= 1) return; ShowSystem = on; SystemMonitor.Run(on); Save(); LookChanged?.Invoke(); }
+        public static void SetSysItem(int bit, bool on)
+        {
+            int next = on ? SysItems | bit : SysItems & ~bit;
+            if (next == 0) return; // pelo menos um item do monitor
+            SysItems = next; Save(); LookChanged?.Invoke();
+        }
         public static int PlayerSize = 1;                                  // 0 pequeno, 1 médio, 2 grande
         public static readonly double[] SizeScales = { 0.85, 1.0, 1.2 };
         public static void SetSize(int i) { PlayerSize = Math.Clamp(i, 0, 2); Save(); LookChanged?.Invoke(); }
@@ -49,7 +62,7 @@ namespace MiniPlayer
         };
         public static ThemeDef CurrentTheme => Themes[Math.Clamp(Theme, 0, Themes.Length - 1)];
         public static void SetTheme(int i) { Theme = i; Save(); LookChanged?.Invoke(); }
-        public static void SetHidePlayer(bool on) { if (on && !ShowBattery) return; HidePlayer = on; Save(); LookChanged?.Invoke(); }
+        public static void SetHidePlayer(bool on) { if (on && VisibleGroups <= 1) return; HidePlayer = on; Save(); LookChanged?.Invoke(); }
         public static double FloatX = 200, FloatY = 200;
         public static List<BtBattery> Batteries = new();
         public static event Action BatteriesChanged;
@@ -100,9 +113,10 @@ namespace MiniPlayer
             DispatcherUnhandledException += (_, ev) => ev.Handled = true;
             TaskScheduler.UnobservedTaskException += (_, ev) => ev.SetObserved();
             FixStartupEntry();
-            try { var p = File.ReadAllText(Cfg).Split(';'); Floating = p[0] == "1"; FloatX = double.Parse(p[1], CultureInfo.InvariantCulture); FloatY = double.Parse(p[2], CultureInfo.InvariantCulture); if (p.Length > 3) ShowBattery = p[3] == "1"; if (p.Length > 4) FloatBehind = p[4] == "1"; if (p.Length > 5) HidePlayer = p[5] == "1"; if (p.Length > 6) Theme = int.Parse(p[6]); if (p.Length > 7) FloatVertical = p[7] == "1"; if (p.Length > 8) FloatLocked = p[8] == "1"; if (p.Length > 9) PlayerSize = Math.Clamp(int.Parse(p[9]), 0, 2); if (p.Length > 10) VolumeHintDone = p[10] == "1"; } catch { }
+            try { var p = File.ReadAllText(Cfg).Split(';'); Floating = p[0] == "1"; FloatX = double.Parse(p[1], CultureInfo.InvariantCulture); FloatY = double.Parse(p[2], CultureInfo.InvariantCulture); if (p.Length > 3) ShowBattery = p[3] == "1"; if (p.Length > 4) FloatBehind = p[4] == "1"; if (p.Length > 5) HidePlayer = p[5] == "1"; if (p.Length > 6) Theme = int.Parse(p[6]); if (p.Length > 7) FloatVertical = p[7] == "1"; if (p.Length > 8) FloatLocked = p[8] == "1"; if (p.Length > 9) PlayerSize = Math.Clamp(int.Parse(p[9]), 0, 2); if (p.Length > 10) VolumeHintDone = p[10] == "1"; if (p.Length > 11) ShowSystem = p[11] == "1"; if (p.Length > 12) SysItems = int.Parse(p[12]) is > 0 and < 32 and var si ? si : SysItems; } catch { }
             Sync();
             SetupTray();
+            SystemMonitor.Run(ShowSystem);
             TrimMemory();
             BatteryReader.Changed += () => Dispatcher.BeginInvoke(new Action(RefreshBatteries));
             try { BatteryReader.Start(); } catch { }
@@ -197,7 +211,7 @@ namespace MiniPlayer
         public static void SetBehind(bool on) { FloatBehind = on; Save(); }
         public static void SetFloatVertical(bool on) { FloatVertical = on; Save(); }
         public static void SetFloatLocked(bool on) { FloatLocked = on; Save(); }
-        public static void SetBattery(bool on) { if (!on && HidePlayer) return; ShowBattery = on; Save(); RefreshBatteries(); }
+        public static void SetBattery(bool on) { if (!on && VisibleGroups <= 1) return; ShowBattery = on; Save(); RefreshBatteries(); }
         // Encerramento limpo: fecha janelas (solta ganchos), para a captura de áudio e garante que o processo termina
         static bool quitting;
         public static void Quit()
@@ -282,7 +296,7 @@ namespace MiniPlayer
             t.Start();
         }
 
-        public static void Save() { try { File.WriteAllText(Cfg, string.Create(CultureInfo.InvariantCulture, $"{(Floating ? 1 : 0)};{FloatX};{FloatY};{(ShowBattery ? 1 : 0)};{(FloatBehind ? 1 : 0)};{(HidePlayer ? 1 : 0)};{Theme};{(FloatVertical ? 1 : 0)};{(FloatLocked ? 1 : 0)};{PlayerSize};{(VolumeHintDone ? 1 : 0)}")); } catch { } }
+        public static void Save() { try { File.WriteAllText(Cfg, string.Create(CultureInfo.InvariantCulture, $"{(Floating ? 1 : 0)};{FloatX};{FloatY};{(ShowBattery ? 1 : 0)};{(FloatBehind ? 1 : 0)};{(HidePlayer ? 1 : 0)};{Theme};{(FloatVertical ? 1 : 0)};{(FloatLocked ? 1 : 0)};{PlayerSize};{(VolumeHintDone ? 1 : 0)};{(ShowSystem ? 1 : 0)};{SysItems}")); } catch { } }
 
         // Decide quais barras recebem player: fixo = todas as barras; solto = só a principal
         public void Sync()

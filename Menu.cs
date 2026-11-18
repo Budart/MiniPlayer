@@ -50,8 +50,14 @@ namespace MiniPlayer
                 new() { Text = L.S("show"), Children = new()
                 {
                     // um dos dois sempre fica visível: o que estiver sozinho não pode ser desmarcado
-                    new() { Text = L.S("media"), Checked = () => !App.HidePlayer, Enabled = () => App.HidePlayer || App.ShowBattery, Click = () => App.SetHidePlayer(!App.HidePlayer) },
-                    new() { Text = L.S("battery"), Checked = () => App.ShowBattery, Enabled = () => !App.ShowBattery || !App.HidePlayer, Click = () => App.SetBattery(!App.ShowBattery) },
+                    new() { Text = L.S("media"), Checked = () => !App.HidePlayer, Enabled = () => App.HidePlayer || App.VisibleGroups > 1, Click = () => App.SetHidePlayer(!App.HidePlayer) },
+                    new() { Text = L.S("battery"), Checked = () => App.ShowBattery, Enabled = () => !App.ShowBattery || App.VisibleGroups > 1, Click = () => App.SetBattery(!App.ShowBattery) },
+                    new() { Text = L.S("system"), Children = new()
+                    {
+                        new() { Text = L.S("sysshow"), Checked = () => App.ShowSystem, Enabled = () => !App.ShowSystem || App.VisibleGroups > 1, Click = () => App.SetSystem(!App.ShowSystem) },
+                        MenuNode.Sep,
+                        SysItem("ram", 1), SysItem("cpu", 2), SysItem("cputemp", 4), SysItem("gpu", 8), SysItem("gputemp", 16),
+                    }},
                 }},
                 new() { Text = L.S("theme"), Children = temas },
                 new() { Text = L.S("size"), Children = new()
@@ -66,6 +72,14 @@ namespace MiniPlayer
                 new() { Text = L.S("quit"), Click = App.Quit },
             };
         }
+
+        // item do monitor: só pode desmarcar se sobrar outro marcado
+        static MenuNode SysItem(string key, int bit) => new()
+        {
+            Text = L.S(key), Checked = () => App.SysOn(bit),
+            Enabled = () => App.ShowSystem && (!App.SysOn(bit) || (App.SysItems & ~bit) != 0),
+            Click = () => App.SetSysItem(bit, !App.SysOn(bit))
+        };
 
         static MainWindow Application_FirstPlayer() => System.Windows.Application.Current.Windows.OfType<MainWindow>().FirstOrDefault();
 

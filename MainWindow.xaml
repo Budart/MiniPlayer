@@ -65,6 +65,8 @@
         </Button>
       </StackPanel>
       <StackPanel x:Name="BatteryPanel" Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,4,0"/>
+      <!-- monitor do sistema (RAM, CPU, GPU, temperaturas), com separador sutil -->
+      <StackPanel x:Name="SysPanel" Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,4,0"/>
     </Grid>
   </Border>
 </Window>
