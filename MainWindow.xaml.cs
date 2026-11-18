@@ -622,6 +622,14 @@ namespace MiniPlayer
                 string name = L.S(key); int b = bit;
                 col.ToolTip = name;
                 col.ToolTipOpening += (_, __) => { var v = SysValue(b); col.ToolTip = v < 0 ? $"{name}: {L.S("na")}" : $"{name}: {SysText(b, v)}"; };
+                // duplo clique em qualquer item do monitor abre o Gerenciador de Tarefas
+                col.Cursor = Cursors.Hand;
+                col.PreviewMouseLeftButtonDown += (_, e) =>
+                {
+                    if (e.ClickCount != 2) return;
+                    e.Handled = true;
+                    try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("taskmgr.exe") { UseShellExecute = true }); } catch { }
+                };
                 SysPanel.Children.Add(col);
                 sysTiles.Add((bit, val));
             }
