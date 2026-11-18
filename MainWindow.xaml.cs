@@ -614,7 +614,7 @@ namespace MiniPlayer
                 if (!App.SysOn(bit)) continue;
                 var col = new StackPanel { Orientation = Orientation.Vertical, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center,
                     Margin = vertical ? new Thickness(0, 6, 0, 0) : new Thickness(8, 0, 0, 0), Background = Brushes.Transparent };
-                col.Children.Add(new System.Windows.Shapes.Path { Data = IconGeometry(icon), Stroke = fg, StrokeThickness = 1.4,
+                col.Children.Add(new System.Windows.Shapes.Path { Data = IconGeometry(icon), Stroke = fg, StrokeThickness = 1.15,
                     StrokeLineJoin = PenLineJoin.Round, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round,
                     Width = 22, Height = 16, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Center, SnapsToDevicePixels = true });
                 var val = new TextBlock { Text = "--", FontSize = 10, HorizontalAlignment = HorizontalAlignment.Center, Foreground = fg };
@@ -723,10 +723,11 @@ namespace MiniPlayer
             ["spk"] = "M6,3 H18 A1.5,1.5 0 0 1 19.5,4.5 V19.5 A1.5,1.5 0 0 1 18,21 H6 A1.5,1.5 0 0 1 4.5,19.5 V4.5 A1.5,1.5 0 0 1 6,3 Z " + Circ(12, 14.5, 3.5) + Circ(12, 7.5, 1.3),
             ["kbd"] = "M3,6 H21 A1.5,1.5 0 0 1 22.5,7.5 V16.5 A1.5,1.5 0 0 1 21,18 H3 A1.5,1.5 0 0 1 1.5,16.5 V7.5 A1.5,1.5 0 0 1 3,6 Z M5,9.5 H6 M8,9.5 H9 M11,9.5 H12 M14,9.5 H15 M17,9.5 H19 M5,12.5 H6.5 M9,12.5 H10 M12,12.5 H13 M15.5,12.5 H19 M7.5,15 H16.5",
             ["mouse"] = "M12,2.5 C8,2.5 6,5.5 6,9 V15 C6,18.8 8.6,21.5 12,21.5 C15.4,21.5 18,18.8 18,15 V9 C18,5.5 16,2.5 12,2.5 Z M6,10 H18 M12,2.5 V10 M12,5 V7.5",
-            ["ram"] = "M3,8 H21 V16 H3 Z M6,16 V19 M10,16 V19 M14,16 V19 M18,16 V19 M6,11 H8 V13 H6 Z M11,11 H13 V13 H11 Z M16,11 H18 V13 H16 Z",
-            ["cpu"] = "M7,7 H17 V17 H7 Z M10,10 H14 V14 H10 Z M9,3 V7 M12,3 V7 M15,3 V7 M9,17 V21 M12,17 V21 M15,17 V21 M3,9 H7 M3,12 H7 M3,15 H7 M17,9 H21 M17,12 H21 M17,15 H21",
-            ["gpu"] = "M2,6 H21 V16 H2 Z M5,16 V19 H12 V16 M21,8 H23 " + Circ(8, 11, 2.6) + Circ(15, 11, 2.6),
-            ["temp"] = "M10,4 A2,2 0 0 1 14,4 V13.6 A4,4 0 1 1 10,13.6 Z M12,9 V16.5",
+            // monitor do sistema: traço fino, desenhos próximos das peças reais
+            ["ram"] = "M2,8.5 H22 V14.5 H13 L12.4,15.6 H11.6 L11,14.5 H2 Z M4.5,10.2 H7 V12.8 H4.5 Z M8.6,10.2 H11.1 V12.8 H8.6 Z M12.9,10.2 H15.4 V12.8 H12.9 Z M17,10.2 H19.5 V12.8 H17 Z M3.5,16.5 V17.6 M5.5,16.5 V17.6 M7.5,16.5 V17.6 M9.5,16.5 V17.6 M14.5,16.5 V17.6 M16.5,16.5 V17.6 M18.5,16.5 V17.6 M20.5,16.5 V17.6",
+            ["cpu"] = "M7.5,6 H16.5 A1.5,1.5 0 0 1 18,7.5 V16.5 A1.5,1.5 0 0 1 16.5,18 H7.5 A1.5,1.5 0 0 1 6,16.5 V7.5 A1.5,1.5 0 0 1 7.5,6 Z M9.5,9.5 H14.5 V14.5 H9.5 Z M9,3.6 V6 M12,3.6 V6 M15,3.6 V6 M9,18 V20.4 M12,18 V20.4 M15,18 V20.4 M3.6,9 H6 M3.6,12 H6 M3.6,15 H6 M18,9 H20.4 M18,12 H20.4 M18,15 H20.4",
+            ["gpu"] = "M2.5,5.5 V19.5 M4,7 H21 A1,1 0 0 1 22,8 V15 A1,1 0 0 1 21,16 H4 Z M7,16 V18 H15 V16 " + Circ(9, 11.5, 2.9) + Circ(16.5, 11.5, 2.9) + Circ(9, 11.5, 0.7) + Circ(16.5, 11.5, 0.7),
+            ["temp"] = "M10.5,4.8 A1.6,1.6 0 0 1 13.7,4.8 V13.9 A3.3,3.3 0 1 1 10.5,13.9 Z M12.1,8 V15.8 M15.8,6 H17.4 M15.8,8.6 H17.4 M15.8,11.2 H17.4",
             ["bt"] = "M7,7.5 L17,16.5 L12,21 V3 L17,7.5 L7,16.5",
         };
 
