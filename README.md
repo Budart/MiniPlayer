@@ -30,7 +30,7 @@ O MiniPlayer também fica com um ícone na bandeja do sistema (perto do relógio
 | | Atrás das janelas (solto) | ✓ = fica atrás das janelas, como um widget da área de trabalho. Sobre a barra de tarefas e no **Win+D** ele continua visível. |
 | **Exibir** | Controles de mídia | ✓ = mostra botões, capa, título e espectro. |
 | | Bateria dos dispositivos | ✓ = mostra os indicadores de bateria. Um dos dois sempre fica visível. |
-| **Tema** | 10 opções | Cores do player: Padrão, Escuro, Claro, Neon, Pôr do sol, Oceano, Floresta, Púrpura, Rubi e Alto contraste. |
+| **Tema** | 11 opções | Cores do player: Padrão, Escuro, Claro, Neon, Pôr do sol, Oceano, Floresta, Púrpura, Rubi, Alto contraste e **Dinâmico** (segue as cores da capa que está tocando). |
 | | Iniciar com o Windows | ✓ = abre o MiniPlayer ao ligar o PC. |
 | | Encerrar MiniPlayer | Fecha o app. |
 
