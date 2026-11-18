@@ -448,6 +448,7 @@ namespace MiniPlayer
                 catch { }
             };
             // volume: rolagem do mouse em qualquer parte do player
+            debounce.Tick += (_, __) => { debounce.Stop(); _ = Refresh(true); };
             Root.MouseWheel += (_, e) => { ChangeVolume(e.Delta > 0 ? 1 : -1); e.Handled = true; };
             if (isPrimary)
             {
@@ -823,6 +824,7 @@ namespace MiniPlayer
                 if (all.Length < 2) return;
                 int i = Array.FindIndex(all, x => x.SourceAppUserModelId == session?.SourceAppUserModelId);
                 pinnedSource = all[(i + 1) % all.Length].SourceAppUserModelId;
+                foreach (var w in Application.Current.Windows.OfType<MainWindow>()) w.immediateUntil = DateTime.Now.AddSeconds(1);
                 foreach (var w in Application.Current.Windows.OfType<MainWindow>()) w.Hook();
             }
             catch { }
@@ -831,18 +833,36 @@ namespace MiniPlayer
         void OnMedia(object s, object e) => Dispatcher.Invoke(() => _ = Refresh());
         void OnPlay(object s, object e) => Dispatcher.Invoke(() => _ = Refresh());
 
-        async Task Refresh()
+        // Ignora trocas rápidas de mídia (ex.: prévia ao passar o mouse numa miniatura do YouTube):
+        // título/capa novos só aparecem se continuarem os mesmos por 2 s. Ações do próprio usuário (avançar,
+        // voltar, trocar fonte) e a primeira mídia aparecem na hora.
+        string shownKey, pendingKey;
+        DateTime immediateUntil;
+        readonly DispatcherTimer debounce = new() { Interval = TimeSpan.FromSeconds(2) };
+
+        async Task Refresh(bool fromDebounce = false)
         {
-            if (session == null) { isPlaying = false; Progress.Visibility = Visibility.Collapsed; SetTitle(L.S("nothing")); ArtistText.Text = ""; Art.Source = null; NoArt.Visibility = Visibility.Visible; PlayBtn.Content = ""; return; }
+            if (session == null) { shownKey = pendingKey = null; isPlaying = false; Progress.Visibility = Visibility.Collapsed; SetTitle(L.S("nothing")); ArtistText.Text = ""; Art.Source = null; NoArt.Visibility = Visibility.Visible; PlayBtn.Content = ""; return; }
             try
             {
                 var p = await session.TryGetMediaPropertiesAsync();
-                SetTitle(string.IsNullOrEmpty(p.Title) ? L.S("untitled") : p.Title);
-                ArtistText.Text = p.Artist;
                 var playing = session.GetPlaybackInfo().PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
                 isPlaying = playing;
                 UpdateProgress();
                 PlayBtn.Content = playing ? "" : "";
+                string baseKey = (p.Title ?? "") + "\n" + (p.Artist ?? "");
+                string key = baseKey + (p.Thumbnail != null ? "\n+capa" : "");
+                if (key == shownKey) { pendingKey = null; return; } // mesma mídia (ex.: só pausou/voltou ao original)
+                bool sameSong = shownKey != null && shownKey.StartsWith(baseKey + "\n") || shownKey == baseKey; // só chegou a capa/dados da mesma música
+                bool now = shownKey == null || sameSong || DateTime.Now < immediateUntil || (fromDebounce && key == pendingKey);
+                if (!now)
+                {
+                    if (key != pendingKey) { pendingKey = key; debounce.Stop(); debounce.Start(); } // espera 2 s estável
+                    return;
+                }
+                shownKey = key; pendingKey = null; debounce.Stop();
+                SetTitle(string.IsNullOrEmpty(p.Title) ? L.S("untitled") : p.Title);
+                ArtistText.Text = p.Artist;
                 Art.Source = null; NoArt.Visibility = Visibility.Visible; accent.Color = Colors.White;
                 if (p.Thumbnail != null)
                 {
@@ -859,8 +879,8 @@ namespace MiniPlayer
             catch { }
         }
 
-        async void Prev_Click(object s, RoutedEventArgs e) { if (session != null) await session.TrySkipPreviousAsync(); }
+        async void Prev_Click(object s, RoutedEventArgs e) { immediateUntil = DateTime.Now.AddSeconds(5); if (session != null) await session.TrySkipPreviousAsync(); }
         async void Play_Click(object s, RoutedEventArgs e) { if (session != null) await session.TryTogglePlayPauseAsync(); }
-        async void Next_Click(object s, RoutedEventArgs e) { if (session != null) await session.TrySkipNextAsync(); }
+        async void Next_Click(object s, RoutedEventArgs e) { immediateUntil = DateTime.Now.AddSeconds(5); if (session != null) await session.TrySkipNextAsync(); }
     }
 }
