@@ -18,6 +18,7 @@ Em [Releases](../../releases/latest) há duas opções:
 - **Volume pela rolagem do mouse** sobre o player (passe o mouse na capa para ver o volume atual).
 - **Várias mídias abertas?** O player mostra a que está tocando com som; o botão ⇄ alterna manualmente. Prévias do YouTube ao passar o mouse são ignoradas.
 - **Tempo restante de bateria** ao passar o mouse sobre um dispositivo.
+- **Streamings sem capa** (Netflix, Prime Video, Disney+...) ganham uma imagem padrão; sem nenhuma informação, aparece uma nota musical (nunca o ícone do navegador).
 - **Tamanhos** pequeno, médio e grande; temas com degradê, incluindo o **Dinâmico** (cores da capa).
 - **Controle de qualquer mídia**: voltar, play/pause e avançar, com capa, título e artista do que estiver tocando no PC (Spotify, Tidal, YouTube e outros sites no navegador, players de vídeo...).
 - **Espectro de áudio** discreto atrás dos botões, na cor predominante da capa.

@@ -702,6 +702,59 @@ namespace MiniPlayer
         }
 
         // Cor predominante (mais saturada) da capa
+        // Ícone de programa (fundo transparente) x capa de verdade (opaca)
+        static bool IsAppIcon(BitmapSource src)
+        {
+            try
+            {
+                var small = new FormatConvertedBitmap(new TransformedBitmap(src, new ScaleTransform(16.0 / src.PixelWidth, 16.0 / src.PixelHeight)), PixelFormats.Bgra32, null, 0);
+                var px = new byte[small.PixelWidth * small.PixelHeight * 4]; small.CopyPixels(px, small.PixelWidth * 4, 0);
+                int transp = 0; for (int i = 3; i < px.Length; i += 4) if (px[i] < 200) transp++;
+                return transp > px.Length / 4 / 10; // >10% transparente = ícone
+            }
+            catch { return false; }
+        }
+
+        // Capas padrão para streamings que não enviam capa (arte genérica: nome do serviço sobre degradê; sem logotipos oficiais)
+        static readonly (string[] keys, string name, string c1, string c2)[] Services =
+        {
+            (new[] { "netflix" }, "NETFLIX", "#E50914", "#2A0204"),
+            (new[] { "primevideo", "prime video", "amazonvideo" }, "Prime Video", "#1A98FF", "#0F171E"),
+            (new[] { "disney" }, "Disney+", "#1F4FD8", "#040714"),
+            (new[] { "hbomax", "hbo", " max" }, "Max", "#3B2BFF", "#0A0A2A"),
+            (new[] { "globoplay" }, "Globoplay", "#FB3A3A", "#2A0808"),
+            (new[] { "crunchyroll" }, "Crunchyroll", "#F47521", "#2A1405"),
+            (new[] { "paramount" }, "Paramount+", "#0064FF", "#00102E"),
+            (new[] { "appletv", "apple tv" }, "Apple TV", "#5A5A5F", "#0B0B0D"),
+            (new[] { "twitch" }, "Twitch", "#9146FF", "#18082E"),
+            (new[] { "youtube" }, "YouTube", "#FF2020", "#2A0000"),
+        };
+        static readonly System.Collections.Generic.Dictionary<string, BitmapSource> serviceArt = new();
+        static BitmapSource ServiceCover(params string[] texts)
+        {
+            var all = string.Join(" | ", texts.Where(t => !string.IsNullOrEmpty(t))).ToLowerInvariant();
+            foreach (var sv in Services)
+            {
+                if (!sv.keys.Any(k => all.Contains(k))) continue;
+                if (serviceArt.TryGetValue(sv.name, out var cached)) return cached;
+                const int S = 96;
+                var dv = new DrawingVisual();
+                using (var dc = dv.RenderOpen())
+                {
+                    var bg = new LinearGradientBrush((Color)ColorConverter.ConvertFromString(sv.c1), (Color)ColorConverter.ConvertFromString(sv.c2), 60);
+                    dc.DrawRectangle(bg, null, new Rect(0, 0, S, S));
+                    var ft = new FormattedText(sv.name, System.Globalization.CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
+                        new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal), sv.name.Length > 8 ? 13 : 16, Brushes.White, 1.0)
+                        { MaxTextWidth = S - 10, TextAlignment = TextAlignment.Center };
+                    dc.DrawText(ft, new Point(5, (S - ft.Height) / 2));
+                }
+                var rtb = new RenderTargetBitmap(S, S, 96, 96, PixelFormats.Pbgra32); rtb.Render(dv); rtb.Freeze();
+                serviceArt[sv.name] = rtb;
+                return rtb;
+            }
+            return null;
+        }
+
         // Cor principal (para espectro/tema) e uma 2ª cor (lado oposto da capa) para o degradê
         static (Color main, Color second) AccentPair(BitmapSource src)
         {
@@ -899,18 +952,25 @@ namespace MiniPlayer
                 SetTitle(string.IsNullOrEmpty(p.Title) ? L.S("untitled") : p.Title);
                 ArtistText.Text = p.Artist;
                 Art.Source = null; NoArt.Visibility = Visibility.Visible; accent.Color = Colors.White; accentDeep.Color = Color.FromRgb(0x30, 0x34, 0x3C);
+                BitmapSource cover = null;
                 if (p.Thumbnail != null)
                 {
                     using var ws = await p.Thumbnail.OpenReadAsync();
                     using var st = ws.AsStreamForRead();
                     using var ms = new MemoryStream(); await st.CopyToAsync(ms); ms.Position = 0;
                     var bmp = new BitmapImage(); bmp.BeginInit(); bmp.CacheOption = BitmapCacheOption.OnLoad; bmp.DecodePixelWidth = 160; /* nítido até ~500% de escala */ bmp.StreamSource = ms; bmp.EndInit(); bmp.Freeze();
-                    Art.Source = bmp; NoArt.Visibility = Visibility.Collapsed;
-                    (var c1, accent2) = AccentPair(bmp); accent.Color = c1;
-                    accentDeep.Color = Color.FromRgb((byte)(c1.R * 0.55), (byte)(c1.G * 0.55), (byte)(c1.B * 0.55));
-                    if (App.Theme == App.DynamicTheme) ApplyDynamic(true);
+                    // navegador sem capa manda o próprio ícone (Chrome/Edge): descarta
+                    cover = IsBrowser(session) && IsAppIcon(bmp) ? null : bmp;
                 }
-                if (p.Thumbnail == null && App.Theme == App.DynamicTheme) ApplyDynamic(true);
+                // sem capa: imagem padrão do streaming (Netflix, Prime Video...) ou, em último caso, a nota musical
+                cover ??= ServiceCover(session?.SourceAppUserModelId, p.Title, p.Artist, p.AlbumTitle);
+                if (cover != null)
+                {
+                    Art.Source = cover; NoArt.Visibility = Visibility.Collapsed;
+                    (var c1, accent2) = AccentPair(cover); accent.Color = c1;
+                    accentDeep.Color = Color.FromRgb((byte)(c1.R * 0.55), (byte)(c1.G * 0.55), (byte)(c1.B * 0.55));
+                }
+                if (App.Theme == App.DynamicTheme) ApplyDynamic(true);
             }
             catch { }
         }
