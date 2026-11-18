@@ -31,19 +31,19 @@ namespace MiniPlayer
         public static event Action LookChanged; // tema ou "ocultar player" mudou
 
         // Temas: fundo, texto principal, texto secundário, cor fixa do espectro (null = cor da capa)
-        public record ThemeDef(string Name, string Bg, string Fg, string Fg2, string Spectrum);
+        public record ThemeDef(string Name, string Bg, string Fg, string Fg2, string Spectrum, string Bg2 = null); // Bg→Bg2 = degradê
         public static readonly ThemeDef[] Themes =
         {
             new("Padrão (transparente)", "#01000000", "#FFFFFFFF", "#BBFFFFFF", null),
-            new("Escuro",                "#E61B1D22", "#FFFFFFFF", "#AAFFFFFF", null),
-            new("Claro",                 "#EEF4F5F7", "#FF1B1D22", "#991B1D22", null),
-            new("Neon",                  "#E60B0F1A", "#FF00E5FF", "#AAFF4FD8", "#FF00E5FF"),
-            new("Pôr do sol",            "#E62A1410", "#FFFFC27A", "#BBFF8A65", "#FFFF7A45"),
-            new("Oceano",                "#E60A2540", "#FF7FDBFF", "#AAB3E5FC", "#FF29B6F6"),
-            new("Floresta",              "#E60F2418", "#FFB9F6CA", "#AA81C784", "#FF66BB6A"),
-            new("Púrpura",               "#E62A1240", "#FFE1BEE7", "#AACE93D8", "#FFBA68C8"),
-            new("Rubi",                  "#E63A0E14", "#FFFFCDD2", "#AAEF9A9A", "#FFEF5350"),
-            new("Alto contraste",        "#FF000000", "#FFFFFF00", "#FFFFFFFF", "#FFFFFF00"),
+            new("Escuro",                "#E61B1D22", "#FFFFFFFF", "#AAFFFFFF", null, "#E62E323C"),
+            new("Claro",                 "#EEF4F5F7", "#FF1B1D22", "#991B1D22", null, "#EED9E1EC"),
+            new("Neon",                  "#E60B0F1A", "#FF00E5FF", "#AAFF4FD8", "#FF00E5FF", "#E6260A3A"),
+            new("Pôr do sol",            "#E62A1410", "#FFFFC27A", "#BBFF8A65", "#FFFF7A45", "#E64A1630"),
+            new("Oceano",                "#E60A2540", "#FF7FDBFF", "#AAB3E5FC", "#FF29B6F6", "#E6054A4E"),
+            new("Floresta",              "#E60F2418", "#FFB9F6CA", "#AA81C784", "#FF66BB6A", "#E6243A10"),
+            new("Púrpura",               "#E62A1240", "#FFE1BEE7", "#AACE93D8", "#FFBA68C8", "#E64A0E36"),
+            new("Rubi",                  "#E63A0E14", "#FFFFCDD2", "#AAEF9A9A", "#FFEF5350", "#E62C0A2E"),
+            new("Alto contraste",        "#FF000000", "#FFFFFF00", "#FFFFFFFF", "#FFFFFF00", "#FF1C1C1C"),
             new("Dinâmico",              "#E6202020", "#FFFFFFFF", "#BBFFFFFF", null), // cores calculadas da capa (ver MainWindow.ApplyDynamic)
         };
         public static ThemeDef CurrentTheme => Themes[Math.Clamp(Theme, 0, Themes.Length - 1)];

@@ -307,6 +307,7 @@ namespace MiniPlayer
             }
             UpdateBatteries();
             if (dynBgGrad != null) dynBgGrad.EndPoint = vertical ? new Point(0, 1) : new Point(1, 0);
+            if (IsLoaded) ApplyLook();
         }
 
         // Monitor sem bandeja: acha (via acessibilidade) o item mais à esquerda do grupo da direita (relógio etc.)
@@ -363,20 +364,30 @@ namespace MiniPlayer
 
         // Tema e "ocultar player"
         Brush fg = Brushes.White;
+        // degradê no sentido do comprimento do player (horizontal: esquerda→direita; vertical: cima→baixo)
+        LinearGradientBrush Grad(string a, string b)
+        {
+            var g = new LinearGradientBrush((Color)ColorConverter.ConvertFromString(a), (Color)ColorConverter.ConvertFromString(b), vertical ? 90 : 0);
+            g.Freeze(); return g;
+        }
+        readonly SolidColorBrush accentDeep = new(Color.FromRgb(0x30, 0x34, 0x3C));
         static SolidColorBrush B(string hex) { var b = new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex)); b.Freeze(); return b; }
         void ApplyLook()
         {
             var th = App.CurrentTheme;
             bool dyn = App.Theme == App.DynamicTheme;
             fg = dyn ? dynFg : B(th.Fg);
-            Root.Background = dyn ? DynBg : B(th.Bg);
+            Root.Background = dyn ? DynBg : th.Bg2 == null ? B(th.Bg) : Grad(th.Bg, th.Bg2);
             // temas com fundo: leve recuo (3 px) para o fundo parecer "dentro" da barra, sem encostar nas bordas dela
             Root.Margin = App.Theme == 0 ? new Thickness(0) : new Thickness(3);
             TitleText.Foreground = fg; ArtistText.Foreground = dyn ? dynFg2 : B(th.Fg2); NoArt.Foreground = fg;
             PrevBtn.Foreground = PlayBtn.Foreground = NextBtn.Foreground = SwapBtn.Foreground = fg; SwapIcon.Stroke = fg;
             ProgFill.Background = ProgTrack.Background = fg;
             SizeScale.ScaleX = SizeScale.ScaleY = App.SizeScales[App.PlayerSize];
-            foreach (Rectangle r in Spectrum.Children) r.Fill = th.Spectrum != null ? B(th.Spectrum) : accent;
+            // tema Claro: espectro na cor da capa escurecida e mais opaco (no fundo claro a cor original fica apagada)
+            bool light = App.Theme == 2;
+            Spectrum.Opacity = light ? 0.6 : 0.28;
+            foreach (Rectangle r in Spectrum.Children) r.Fill = th.Spectrum != null ? B(th.Spectrum) : light ? accentDeep : accent;
             var vis = App.HidePlayer ? Visibility.Collapsed : Visibility.Visible;
             Controls.Visibility = Spectrum.Visibility = ArtBox.Visibility = InfoPanel.Visibility = vis;
             if (vertical) InfoPanel.Visibility = Visibility.Collapsed; // barra lateral: sem textos
@@ -766,6 +777,16 @@ namespace MiniPlayer
             catch { }
         }
 
+        static readonly string[] Browsers = { "chrome", "msedge", "firefox", "opera", "brave", "vivaldi", "arc", "308046b0af4a39cb" };
+        static bool IsBrowser(GlobalSystemMediaTransportControlsSession s) { var n = SourceName(s).ToLowerInvariant(); return Browsers.Any(b => n.Contains(b)); }
+        static float AppPeak(GlobalSystemMediaTransportControlsSession s)
+        {
+            var app = SourceName(s).ToLowerInvariant(); float m = 0;
+            if (app.Contains("308046b0af4a39cb")) app = "firefox"; // id do Firefox no Windows
+            foreach (var (pn, v) in Peaks()) if (pn.Length > 1 && (pn.Contains(app) || app.Contains(pn))) m = Math.Max(m, v);
+            return m;
+        }
+
         // Nível de som atual de cada programa no mixer do Windows
         static System.Collections.Generic.List<(string pn, float v)> Peaks()
         {
@@ -854,7 +875,10 @@ namespace MiniPlayer
                 string key = baseKey + (p.Thumbnail != null ? "\n+capa" : "");
                 if (key == shownKey) { pendingKey = null; return; } // mesma mídia (ex.: só pausou/voltou ao original)
                 bool sameSong = shownKey != null && shownKey.StartsWith(baseKey + "\n") || shownKey == baseKey; // só chegou a capa/dados da mesma música
-                bool now = shownKey == null || sameSong || DateTime.Now < immediateUntil || (fromDebounce && key == pendingKey);
+                bool stable = fromDebounce && key == pendingKey;
+                // navegadores (prévias do YouTube ao passar o mouse): só aceita se estiver tocando e saindo som
+                if (stable && IsBrowser(session) && !(playing && AppPeak(session) > 0.005f)) { debounce.Stop(); debounce.Start(); return; }
+                bool now = shownKey == null || sameSong || DateTime.Now < immediateUntil || stable;
                 if (!now)
                 {
                     if (key != pendingKey) { pendingKey = key; debounce.Stop(); debounce.Start(); } // espera 2 s estável
@@ -863,7 +887,7 @@ namespace MiniPlayer
                 shownKey = key; pendingKey = null; debounce.Stop();
                 SetTitle(string.IsNullOrEmpty(p.Title) ? L.S("untitled") : p.Title);
                 ArtistText.Text = p.Artist;
-                Art.Source = null; NoArt.Visibility = Visibility.Visible; accent.Color = Colors.White;
+                Art.Source = null; NoArt.Visibility = Visibility.Visible; accent.Color = Colors.White; accentDeep.Color = Color.FromRgb(0x30, 0x34, 0x3C);
                 if (p.Thumbnail != null)
                 {
                     using var ws = await p.Thumbnail.OpenReadAsync();
@@ -872,6 +896,7 @@ namespace MiniPlayer
                     var bmp = new BitmapImage(); bmp.BeginInit(); bmp.CacheOption = BitmapCacheOption.OnLoad; bmp.DecodePixelWidth = 160; /* nítido até ~500% de escala */ bmp.StreamSource = ms; bmp.EndInit(); bmp.Freeze();
                     Art.Source = bmp; NoArt.Visibility = Visibility.Collapsed;
                     (var c1, accent2) = AccentPair(bmp); accent.Color = c1;
+                    accentDeep.Color = Color.FromRgb((byte)(c1.R * 0.55), (byte)(c1.G * 0.55), (byte)(c1.B * 0.55));
                     if (App.Theme == App.DynamicTheme) ApplyDynamic(true);
                 }
                 if (p.Thumbnail == null && App.Theme == App.DynamicTheme) ApplyDynamic(true);
