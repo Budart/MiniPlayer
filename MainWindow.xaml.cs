@@ -1,5 +1,8 @@
 using System;
 using System.IO;
+using System.Linq;
+using System.Windows.Media.Animation;
+using NAudio.CoreAudioApi;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
@@ -104,7 +107,7 @@ namespace MiniPlayer
                 SetVertical(true, (br.R - br.L) / sc);
                 Left = br.L / sc; Top = br.T / sc + 8;
             }
-            Loaded += async (_, __) => { Setup(); SetupSpectrum(); UpdateBatteries(); await InitMedia(); };
+            Loaded += async (_, __) => { Setup(); SetupSpectrum(); SetupExtras(); UpdateBatteries(); await InitMedia(); };
             App.BatteriesChanged += UpdateBatteries;
             App.LookChanged += ApplyLook;
             Closed += (_, __) => UnhookMouse(); // nunca deixa o gancho de mouse para trás
@@ -276,11 +279,12 @@ namespace MiniPlayer
                 foreach (var e in parts) { Grid.SetColumnSpan(e, 1); Grid.SetRowSpan(e, 1); }
                 // botões empilhados e "apertadinhos"
                 Controls.Orientation = Orientation.Vertical;
-                foreach (var btn in new[] { PrevBtn, PlayBtn, NextBtn }) btn.Height = 20;
+                foreach (var btn in new[] { PrevBtn, PlayBtn, NextBtn, SwapBtn }) btn.Height = 20;
                 Controls.HorizontalAlignment = ArtBox.HorizontalAlignment = BatteryPanel.HorizontalAlignment = HorizontalAlignment.Center;
                 Controls.Margin = new Thickness(0, 6, 0, 0);
                 ArtBox.Margin = new Thickness(0, 6, 0, 0);
                 InfoPanel.Visibility = Visibility.Collapsed; // sem textos na vertical
+                MoveProgress(true);
                 BatteryPanel.Orientation = Orientation.Vertical; BatteryPanel.Margin = new Thickness(0, 4, 0, 8);
                 // espectro com menos barras (uma sim, uma não)
                 for (int i = 0; i < Spectrum.Children.Count; i++) Spectrum.Children[i].Visibility = i % 2 == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -293,10 +297,11 @@ namespace MiniPlayer
                 At(Controls, 0, 0); At(Spectrum, 0, 0); At(ArtBox, 0, 1); At(InfoPanel, 0, 2); At(BatteryPanel, 0, 3);
                 foreach (var e in parts) { Grid.SetColumnSpan(e, 1); Grid.SetRowSpan(e, 1); }
                 Controls.Orientation = Orientation.Horizontal;
-                foreach (var btn in new[] { PrevBtn, PlayBtn, NextBtn }) btn.ClearValue(HeightProperty);
+                foreach (var btn in new[] { PrevBtn, PlayBtn, NextBtn, SwapBtn }) btn.ClearValue(HeightProperty);
                 Controls.ClearValue(HorizontalAlignmentProperty); ArtBox.ClearValue(HorizontalAlignmentProperty); BatteryPanel.ClearValue(HorizontalAlignmentProperty);
                 Controls.Margin = new Thickness(0); ArtBox.Margin = new Thickness(6, 0, 0, 0);
                 InfoPanel.Visibility = App.HidePlayer ? Visibility.Collapsed : Visibility.Visible;
+                MoveProgress(false);
                 BatteryPanel.Orientation = Orientation.Horizontal; BatteryPanel.Margin = new Thickness(0, 0, 4, 0);
                 foreach (UIElement r in Spectrum.Children) r.Visibility = Visibility.Visible;
             }
@@ -367,7 +372,10 @@ namespace MiniPlayer
             // temas com fundo: leve recuo (3 px) para o fundo parecer "dentro" da barra, sem encostar nas bordas dela
             Root.Margin = App.Theme == 0 ? new Thickness(0) : new Thickness(3);
             TitleText.Foreground = fg; ArtistText.Foreground = dyn ? dynFg2 : B(th.Fg2); NoArt.Foreground = fg;
-            PrevBtn.Foreground = PlayBtn.Foreground = NextBtn.Foreground = fg;
+            PrevBtn.Foreground = PlayBtn.Foreground = NextBtn.Foreground = SwapBtn.Foreground = fg;
+            ProgFill.Background = ProgTrack.Background = fg;
+            SizeScale.ScaleX = SizeScale.ScaleY = App.SizeScales[App.PlayerSize];
+            Dispatcher.BeginInvoke(new Action(UpdateMarquee), DispatcherPriority.Loaded);
             foreach (Rectangle r in Spectrum.Children) r.Fill = th.Spectrum != null ? B(th.Spectrum) : accent;
             var vis = App.HidePlayer ? Visibility.Collapsed : Visibility.Visible;
             Controls.Visibility = Spectrum.Visibility = ArtBox.Visibility = InfoPanel.Visibility = vis;
@@ -401,6 +409,137 @@ namespace MiniPlayer
         static Color Mix(Color a, Color b, double t) => Color.FromRgb((byte)(a.R + (b.R - a.R) * t), (byte)(a.G + (b.G - a.G) * t), (byte)(a.B + (b.B - a.B) * t));
         static Color WithA(Color c, byte alpha) => Color.FromArgb(alpha, c.R, c.G, c.B);
 
+        // ======== Barra de progresso, volume pela rolagem, letreiro e dicas de bateria ========
+        bool isPlaying, lastPlaying; string lastTitle;
+
+        void SetupExtras()
+        {
+            // progresso: atualiza 2x por segundo, só se estiver visível
+            var pt = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+            pt.Tick += (_, __) => UpdateProgress();
+            pt.Start();
+            Closed += (_, __) => pt.Stop();
+            Progress.MouseLeftButtonDown += async (_, e) =>
+            {
+                e.Handled = true; // não inicia o arraste do player solto
+                try
+                {
+                    var tl = session?.GetTimelineProperties(); if (tl == null) return;
+                    double r = Math.Clamp(e.GetPosition(Progress).X / Math.Max(1, Progress.ActualWidth), 0, 1);
+                    var target = tl.StartTime + TimeSpan.FromTicks((long)((tl.EndTime - tl.StartTime).Ticks * r));
+                    await session.TryChangePlaybackPositionAsync(target.Ticks);
+                }
+                catch { }
+            };
+            // volume: rolagem do mouse em qualquer parte do player
+            Root.MouseWheel += (_, e) => { ChangeVolume(e.Delta > 0 ? 1 : -1); e.Handled = true; };
+            volTimer.Tick += (_, __) => { volTimer.Stop(); VolBadge.Visibility = Visibility.Collapsed; };
+            InfoPanel.SizeChanged += (_, __) => Dispatcher.BeginInvoke(new Action(UpdateMarquee), DispatcherPriority.Loaded);
+        }
+
+        void MoveProgress(bool toVertical)
+        {
+            (Progress.Parent as Panel)?.Children.Remove(Progress);
+            if (toVertical)
+            {
+                Layout.Children.Add(Progress);
+                Grid.SetRow(Progress, 2); Grid.SetColumn(Progress, 0);
+                Progress.Width = 30; Progress.HorizontalAlignment = HorizontalAlignment.Center; Progress.Margin = new Thickness(0, 3, 0, 0);
+            }
+            else
+            {
+                InfoPanel.Children.Add(Progress);
+                Progress.ClearValue(WidthProperty); Progress.HorizontalAlignment = HorizontalAlignment.Stretch; Progress.Margin = new Thickness(0, 2, 0, 0);
+            }
+        }
+
+        void UpdateProgress()
+        {
+            try
+            {
+                if (session == null || App.HidePlayer || !IsVisible) { Progress.Visibility = Visibility.Collapsed; return; }
+                var tl = session.GetTimelineProperties();
+                double dur = (tl.EndTime - tl.StartTime).TotalSeconds;
+                if (dur < 1) { Progress.Visibility = Visibility.Collapsed; return; } // sem duração (ex.: ao vivo)
+                double pos = (tl.Position - tl.StartTime).TotalSeconds;
+                if (isPlaying) pos += (DateTimeOffset.Now - tl.LastUpdatedTime).TotalSeconds; // o Windows só informa a posição de tempos em tempos
+                Progress.Visibility = Visibility.Visible;
+                ProgFill.Width = Math.Max(0, Progress.ActualWidth * Math.Clamp(pos / dur, 0, 1));
+            }
+            catch { Progress.Visibility = Visibility.Collapsed; }
+        }
+
+        // Volume do app que está tocando (ou geral, se o app não for encontrado no mixer)
+        static readonly MMDeviceEnumerator devices = new();
+        readonly DispatcherTimer volTimer = new() { Interval = TimeSpan.FromMilliseconds(1100) };
+        void ChangeVolume(int dir)
+        {
+            try
+            {
+                using var dev = devices.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
+                string app = SourceName(session).ToLowerInvariant();
+                float? v = null;
+                if (app.Length > 1)
+                {
+                    var list = dev.AudioSessionManager.Sessions;
+                    for (int i = 0; i < list.Count; i++)
+                    {
+                        var sc = list[i];
+                        string pn;
+                        try { pn = System.Diagnostics.Process.GetProcessById((int)sc.GetProcessID).ProcessName.ToLowerInvariant(); } catch { continue; }
+                        if (pn.Length < 2 || !(pn.Contains(app) || app.Contains(pn))) continue;
+                        var nv = Math.Clamp(sc.SimpleAudioVolume.Volume + dir * 0.02f, 0f, 1f);
+                        sc.SimpleAudioVolume.Volume = nv; v = nv;
+                    }
+                }
+                if (v == null)
+                {
+                    var ev = dev.AudioEndpointVolume;
+                    v = Math.Clamp(ev.MasterVolumeLevelScalar + dir * 0.02f, 0f, 1f);
+                    ev.MasterVolumeLevelScalar = v.Value;
+                }
+                VolText.Text = ((int)Math.Round(v.Value * 100)).ToString();
+                VolBadge.Visibility = Visibility.Visible;
+                volTimer.Stop(); volTimer.Start();
+            }
+            catch { }
+        }
+
+        // Título longo: rola devagar de um lado para o outro (só enquanto toca)
+        readonly TranslateTransform titleShift = new();
+        void UpdateMarquee()
+        {
+            titleShift.BeginAnimation(TranslateTransform.XProperty, null); titleShift.X = 0;
+            TitleText.RenderTransform = titleShift;
+            TitleText.ClearValue(WidthProperty); TitleText.HorizontalAlignment = HorizontalAlignment.Stretch;
+            TitleText.TextTrimming = TextTrimming.CharacterEllipsis;
+            if (InfoPanel.Visibility != Visibility.Visible || !isPlaying) return;
+            var probe = new TextBlock { Text = TitleText.Text, FontSize = TitleText.FontSize, FontWeight = TitleText.FontWeight, FontFamily = TitleText.FontFamily };
+            probe.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            double need = probe.DesiredSize.Width, avail = InfoPanel.ActualWidth;
+            if (avail <= 0 || need <= avail + 1) return;
+            TitleText.TextTrimming = TextTrimming.None; TitleText.Width = need; TitleText.HorizontalAlignment = HorizontalAlignment.Left;
+            double over = need - avail, move = Math.Max(1.5, over / 25); // ~25 px/s
+            var a = new DoubleAnimationUsingKeyFrames { RepeatBehavior = RepeatBehavior.Forever };
+            double t = 0;
+            void K(double x, double dt) { t += dt; a.KeyFrames.Add(new LinearDoubleKeyFrame(x, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(t)))); }
+            K(0, 0); K(0, 2); K(-over, move); K(-over, 2); K(0, move);
+            titleShift.BeginAnimation(TranslateTransform.XProperty, a);
+        }
+
+        // Dica ao passar o mouse na bateria: nome, %, carregando ou tempo restante estimado
+        static string BatteryTip(BtBattery b)
+        {
+            if (b.Percent < 0) return $"{b.Name}: {L.S("nobatt")}";
+            var tip = $"{b.Name}: {b.Percent}%";
+            if (b.Charging) return tip + $" ({L.S("charging")})";
+            var r = App.Remaining(b);
+            if (r == null) return tip + $"\n{L.S("estimating")}";
+            var tl = r.Value;
+            string txt = tl.TotalHours >= 1 ? $"~{(int)tl.TotalHours} h {tl.Minutes:00} min" : $"~{Math.Max(1, (int)tl.TotalMinutes)} min";
+            return tip + $"\n{txt} {L.S("left")}";
+        }
+
         // Menu do botão direito: as mesmas opções do ícone da bandeja (ações centralizadas no App)
         void ShowMenu()
         {
@@ -425,7 +564,9 @@ namespace MiniPlayer
                 col.Children.Add(new TextBlock { Text = b.Percent < 0 ? "--" : b.Percent + "%", FontSize = 10, HorizontalAlignment = HorizontalAlignment.Center,
                     Foreground = b.Percent >= 0 && b.Percent <= 20 && !b.Charging ? Brushes.OrangeRed : fg });
                 var sp = new StackPanel { Orientation = Orientation.Horizontal, Margin = vertical ? new Thickness(0, 6, 0, 0) : new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, Background = Brushes.Transparent,
-                    ToolTip = b.Percent < 0 ? $"{b.Name}: {L.S("nobatt")}" : $"{b.Name}: {b.Percent}%" + (b.Charging ? $" ({L.S("charging")})" : "") };
+                    ToolTip = b.Name };
+                var bb = b;
+                sp.ToolTipOpening += (_, __) => sp.ToolTip = BatteryTip(bb);
                 sp.Children.Add(col);
                 if (b.Charging)
                 {
@@ -540,6 +681,7 @@ namespace MiniPlayer
                 {
                     mgr = await Mgr.RequestAsync();
                     mgr.CurrentSessionChanged += (_, __) => Dispatcher.Invoke(Hook);
+                    mgr.SessionsChanged += (_, __) => Dispatcher.Invoke(Hook);
                     Hook();
                     return;
                 }
@@ -547,12 +689,45 @@ namespace MiniPlayer
             }
         }
 
+        // Fonte escolhida pelo usuário (vale para os players de todos os monitores). null = a que o Windows indicar.
+        static string pinnedSource;
         void Hook()
         {
+            if (mgr == null) return;
             if (session != null) { session.MediaPropertiesChanged -= OnMedia; session.PlaybackInfoChanged -= OnPlay; }
-            session = mgr.GetCurrentSession();
+            GlobalSystemMediaTransportControlsSession[] all;
+            try { all = mgr.GetSessions().ToArray(); } catch { all = Array.Empty<GlobalSystemMediaTransportControlsSession>(); }
+            var pinned = pinnedSource == null ? null : all.FirstOrDefault(x => x.SourceAppUserModelId == pinnedSource);
+            if (pinned == null) pinnedSource = null; // a fonte escolhida fechou: volta ao automático
+            session = pinned ?? mgr.GetCurrentSession();
             if (session != null) { session.MediaPropertiesChanged += OnMedia; session.PlaybackInfoChanged += OnPlay; }
+            // botão de troca só aparece com mais de uma fonte
+            SwapBtn.Visibility = all.Length > 1 ? Visibility.Visible : Visibility.Collapsed;
+            SwapBtn.ToolTip = $"{L.S("source")} ({SourceName(session)})";
             _ = Refresh();
+        }
+
+        static string SourceName(GlobalSystemMediaTransportControlsSession s)
+        {
+            var id = s?.SourceAppUserModelId ?? "";
+            id = id.Split('!')[0];
+            if (id.Contains('_')) id = id.Split('_')[0];
+            if (id.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) id = id[..^4];
+            int dot = id.LastIndexOf('.'); if (dot >= 0 && dot < id.Length - 1) id = id[(dot + 1)..];
+            return id;
+        }
+
+        void Swap_Click(object s, RoutedEventArgs e)
+        {
+            try
+            {
+                var all = mgr.GetSessions().ToArray();
+                if (all.Length < 2) return;
+                int i = Array.FindIndex(all, x => x.SourceAppUserModelId == session?.SourceAppUserModelId);
+                pinnedSource = all[(i + 1) % all.Length].SourceAppUserModelId;
+                foreach (var w in Application.Current.Windows.OfType<MainWindow>()) w.Hook();
+            }
+            catch { }
         }
 
         void OnMedia(object s, object e) => Dispatcher.Invoke(() => _ = Refresh());
@@ -560,13 +735,16 @@ namespace MiniPlayer
 
         async Task Refresh()
         {
-            if (session == null) { TitleText.Text = L.S("nothing"); ArtistText.Text = ""; Art.Source = null; NoArt.Visibility = Visibility.Visible; PlayBtn.Content = ""; return; }
+            if (session == null) { isPlaying = false; Progress.Visibility = Visibility.Collapsed; TitleText.Text = L.S("nothing"); ArtistText.Text = ""; Art.Source = null; NoArt.Visibility = Visibility.Visible; PlayBtn.Content = ""; return; }
             try
             {
                 var p = await session.TryGetMediaPropertiesAsync();
                 TitleText.Text = string.IsNullOrEmpty(p.Title) ? L.S("untitled") : p.Title;
                 ArtistText.Text = p.Artist;
                 var playing = session.GetPlaybackInfo().PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
+                isPlaying = playing;
+                if (TitleText.Text != lastTitle || playing != lastPlaying) { lastTitle = TitleText.Text; lastPlaying = playing; Dispatcher.BeginInvoke(new Action(UpdateMarquee), DispatcherPriority.Loaded); }
+                UpdateProgress();
                 PlayBtn.Content = playing ? "" : "";
                 Art.Source = null; NoArt.Visibility = Visibility.Visible; accent.Color = Colors.White;
                 if (p.Thumbnail != null)

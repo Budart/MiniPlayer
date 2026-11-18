@@ -54,6 +54,12 @@ namespace MiniPlayer
                     new() { Text = L.S("battery"), Checked = () => App.ShowBattery, Enabled = () => !App.ShowBattery || !App.HidePlayer, Click = () => App.SetBattery(!App.ShowBattery) },
                 }},
                 new() { Text = L.S("theme"), Children = temas },
+                new() { Text = L.S("size"), Children = new()
+                {
+                    new() { Text = L.S("small"),  Checked = () => App.PlayerSize == 0, Click = () => App.SetSize(0) },
+                    new() { Text = L.S("medium"), Checked = () => App.PlayerSize == 1, Click = () => App.SetSize(1) },
+                    new() { Text = L.S("large"),  Checked = () => App.PlayerSize == 2, Click = () => App.SetSize(2) },
+                }},
                 MenuNode.Sep,
                 new() { Text = L.S("startup"), Checked = () => App.StartsWithWindows, Click = () => App.SetStartup(!App.StartsWithWindows) },
                 MenuNode.Sep,

@@ -14,7 +14,16 @@ jobs:
         with:
           dotnet-version: '8.0.x'
       - run: dotnet publish MiniPlayer.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:EnableCompressionInSingleFile=true -o out
+      # instalador (Inno Setup)
+      - name: Instalador
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress | Out-Null
+          $v = if ("${{ github.ref_type }}" -eq "tag") { "${{ github.ref_name }}".TrimStart('v') } else { "0.0.0" }
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=$v installer.iss
       - uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: out/MiniPlayer.exe
+          files: |
+            out/MiniPlayer.exe
+            installer-out/MiniPlayer-Setup.exe

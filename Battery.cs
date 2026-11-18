@@ -32,6 +32,9 @@ namespace MiniPlayer
         static System.Threading.Timer debounce;
         static TaskCompletionSource<bool> protoKick = new();
         static bool started;
+        // referências fixas aos "observadores" do Windows: sem isso o coletor de memória pode descartá-los
+        // e os avisos de conexão/bateria param de chegar (o app só via o aparelho novo ao reabrir)
+        static readonly List<DeviceWatcher> keep = new();
 
         static void Notify() => debounce?.Change(120, System.Threading.Timeout.Infinite); // agrupa rajadas de eventos
 
@@ -50,7 +53,7 @@ namespace MiniPlayer
                 if (u.Properties.ContainsKey(BattKey)) _ = AddById(u.Id);
             };
             w.Removed += (_, u) => { bool r; lock (gate) r = winDevs.Remove(u.Id); if (r) Notify(); };
-            w.Start();
+            w.Start(); keep.Add(w);
 
             // conexão/desconexão Bluetooth instantânea
             foreach (var sel in new[] { Windows.Devices.Bluetooth.BluetoothDevice.GetDeviceSelectorFromPairingState(true),
@@ -62,7 +65,7 @@ namespace MiniPlayer
                 aw.Added += (_, d) => { lock (gate) aeps[d.Id] = d; Notify(); };
                 aw.Updated += (snd, u) => { lock (gate) if (aeps.TryGetValue(u.Id, out var d)) d.Update(u); Notify(); ProtoKick(); };
                 aw.Removed += (_, u) => { lock (gate) aeps.Remove(u.Id); Notify(); };
-                aw.Start();
+                aw.Start(); keep.Add(aw);
             }
 
             // USB/HID: controles PlayStation, tipos de dispositivo e protocolos de fabricantes
@@ -70,6 +73,34 @@ namespace MiniPlayer
             EnsureReaders();
             _ = RefreshHidKinds();
             Task.Run(ProtocolLoop);
+            Task.Run(ResyncLoop);
+        }
+
+        // Rede de segurança: a cada 20 s confere o estado de conexão dos aparelhos Bluetooth direto no Windows
+        static async Task ResyncLoop()
+        {
+            var sels = new[] { Windows.Devices.Bluetooth.BluetoothDevice.GetDeviceSelectorFromPairingState(true),
+                               Windows.Devices.Bluetooth.BluetoothLEDevice.GetDeviceSelectorFromPairingState(true) };
+            while (true)
+            {
+                await Task.Delay(20000);
+                try
+                {
+                    bool changed = false;
+                    foreach (var sel in sels)
+                        foreach (var d in await DeviceInformation.FindAllAsync(sel, new[] { AepConnected, AepContainer, CodMajor, CodMinor, LeAppearance }, DeviceInformationKind.AssociationEndpoint))
+                            lock (gate)
+                            {
+                                bool now = d.Properties.TryGetValue(AepConnected, out var c) && c is bool b && b, before = false;
+                                if (aeps.TryGetValue(d.Id, out var old)) before = old.Properties.TryGetValue(AepConnected, out var oc) && oc is bool ob && ob;
+                                else changed = true;
+                                if (now != before) changed = true;
+                                aeps[d.Id] = d;
+                            }
+                    if (changed) { Notify(); ProtoKick(); }
+                }
+                catch { }
+            }
         }
 
         static bool HasBatt(DeviceInformation d) => d.Properties.TryGetValue(BattKey, out var b) && b != null;

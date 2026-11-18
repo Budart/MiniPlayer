@@ -23,6 +23,9 @@ namespace MiniPlayer
 
         static readonly string Cfg = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "MiniPlayer.txt");
         public static bool Floating, ShowBattery = true, FloatBehind, HidePlayer, FloatVertical, FloatLocked;
+        public static int PlayerSize = 1;                                  // 0 pequeno, 1 médio, 2 grande
+        public static readonly double[] SizeScales = { 0.85, 1.0, 1.2 };
+        public static void SetSize(int i) { PlayerSize = Math.Clamp(i, 0, 2); Save(); LookChanged?.Invoke(); }
         public static int Theme;
         public const int DynamicTheme = 10;
         public static event Action LookChanged; // tema ou "ocultar player" mudou
@@ -50,9 +53,35 @@ namespace MiniPlayer
         public static List<BtBattery> Batteries = new();
         public static event Action BatteriesChanged;
         // Publica a lista de baterias na interface só quando algo mudou
+        // Histórico de bateria por aparelho (só em memória): base para estimar o tempo restante
+        static readonly Dictionary<string, List<(DateTime t, int p)>> hist = new();
+        static void Record(List<BtBattery> l)
+        {
+            foreach (var b in l)
+            {
+                if (b.Percent < 0) continue;
+                if (b.Charging) { hist.Remove(b.Name); continue; }
+                if (!hist.TryGetValue(b.Name, out var h)) hist[b.Name] = h = new();
+                if (h.Count > 0 && b.Percent > h[^1].p) h.Clear();                 // carregou: recomeça
+                if (h.Count == 0 || h[^1].p != b.Percent) h.Add((DateTime.Now, b.Percent));
+                if (h.Count > 60) h.RemoveAt(0);
+            }
+        }
+        // null = ainda sem dados suficientes
+        public static TimeSpan? Remaining(BtBattery b)
+        {
+            if (b.Charging || b.Percent < 0 || !hist.TryGetValue(b.Name, out var h) || h.Count < 2) return null;
+            var (t0, p0) = h[0]; var (t1, p1) = h[^1];
+            double drop = p0 - p1, mins = (t1 - t0).TotalMinutes;
+            if (drop < 2 || mins < 5) return null;
+            double left = b.Percent / (drop / mins) - (DateTime.Now - t1).TotalMinutes;
+            return TimeSpan.FromMinutes(Math.Max(1, left));
+        }
+
         public static void RefreshBatteries()
         {
             var l = ShowBattery ? BatteryReader.Snapshot() : new List<BtBattery>();
+            Record(l);
             if (l.SequenceEqual(Batteries)) return;
             Batteries = l; BatteriesChanged?.Invoke();
         }
@@ -70,7 +99,7 @@ namespace MiniPlayer
             DispatcherUnhandledException += (_, ev) => ev.Handled = true;
             TaskScheduler.UnobservedTaskException += (_, ev) => ev.SetObserved();
             FixStartupEntry();
-            try { var p = File.ReadAllText(Cfg).Split(';'); Floating = p[0] == "1"; FloatX = double.Parse(p[1], CultureInfo.InvariantCulture); FloatY = double.Parse(p[2], CultureInfo.InvariantCulture); if (p.Length > 3) ShowBattery = p[3] == "1"; if (p.Length > 4) FloatBehind = p[4] == "1"; if (p.Length > 5) HidePlayer = p[5] == "1"; if (p.Length > 6) Theme = int.Parse(p[6]); if (p.Length > 7) FloatVertical = p[7] == "1"; if (p.Length > 8) FloatLocked = p[8] == "1"; } catch { }
+            try { var p = File.ReadAllText(Cfg).Split(';'); Floating = p[0] == "1"; FloatX = double.Parse(p[1], CultureInfo.InvariantCulture); FloatY = double.Parse(p[2], CultureInfo.InvariantCulture); if (p.Length > 3) ShowBattery = p[3] == "1"; if (p.Length > 4) FloatBehind = p[4] == "1"; if (p.Length > 5) HidePlayer = p[5] == "1"; if (p.Length > 6) Theme = int.Parse(p[6]); if (p.Length > 7) FloatVertical = p[7] == "1"; if (p.Length > 8) FloatLocked = p[8] == "1"; if (p.Length > 9) PlayerSize = Math.Clamp(int.Parse(p[9]), 0, 2); } catch { }
             Sync();
             SetupTray();
             TrimMemory();
@@ -252,7 +281,7 @@ namespace MiniPlayer
             t.Start();
         }
 
-        public static void Save() { try { File.WriteAllText(Cfg, string.Create(CultureInfo.InvariantCulture, $"{(Floating ? 1 : 0)};{FloatX};{FloatY};{(ShowBattery ? 1 : 0)};{(FloatBehind ? 1 : 0)};{(HidePlayer ? 1 : 0)};{Theme};{(FloatVertical ? 1 : 0)};{(FloatLocked ? 1 : 0)}")); } catch { } }
+        public static void Save() { try { File.WriteAllText(Cfg, string.Create(CultureInfo.InvariantCulture, $"{(Floating ? 1 : 0)};{FloatX};{FloatY};{(ShowBattery ? 1 : 0)};{(FloatBehind ? 1 : 0)};{(HidePlayer ? 1 : 0)};{Theme};{(FloatVertical ? 1 : 0)};{(FloatLocked ? 1 : 0)};{PlayerSize}")); } catch { } }
 
         // Decide quais barras recebem player: fixo = todas as barras; solto = só a principal
         public void Sync()
