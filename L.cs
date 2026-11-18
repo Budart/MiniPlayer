@@ -17,6 +17,7 @@ namespace MiniPlayer
             ["float"]    = new[] { "Solto na tela (arrastar)", "Floating (drag anywhere)", "Flotante (arrastrar)", "Flottant (déplaçable)", "Frei schwebend (verschiebbar)" },
             ["vert"]     = new[] { "Layout vertical (solto)", "Vertical layout (floating)", "Diseño vertical (flotante)", "Disposition verticale (flottant)", "Vertikales Layout (schwebend)" },
             ["behind"]   = new[] { "Atrás das janelas (solto)", "Behind windows (floating)", "Detrás de las ventanas (flotante)", "Derrière les fenêtres (flottant)", "Hinter Fenstern (schwebend)" },
+            ["lock"]     = new[] { "Travar posição (solto)", "Lock position (floating)", "Bloquear posición (flotante)", "Verrouiller la position (flottant)", "Position sperren (schwebend)" },
             ["show"]     = new[] { "Exibir", "Show", "Mostrar", "Afficher", "Anzeigen" },
             ["media"]    = new[] { "Controles de mídia", "Media controls", "Controles multimedia", "Commandes multimédia", "Mediensteuerung" },
             ["battery"]  = new[] { "Bateria dos dispositivos", "Device battery", "Batería de los dispositivos", "Batterie des appareils", "Gerätebatterie" },

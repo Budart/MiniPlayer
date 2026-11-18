@@ -116,7 +116,7 @@ namespace MiniPlayer
             MouseMove += (_, __) => ClearTaskbarHover();
             Root.MouseLeftButtonDown += (s, e) =>
             {
-                if (!App.Floating || e.OriginalSource is Button) return;
+                if (!App.Floating || App.FloatLocked || e.OriginalSource is Button) return; // travado: não arrasta
                 dragging = true; DragMove(); dragging = false; KeepInsideMonitor(); App.FloatX = Left; App.FloatY = Top; App.Save();
             };
         }

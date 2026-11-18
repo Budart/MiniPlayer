@@ -27,6 +27,7 @@ O MiniPlayer também fica com um ícone na bandeja do sistema (perto do relógio
 | **Posição** | Fixo na barra de tarefas | Encaixa o player na barra (padrão). |
 | | Solto na tela (arrastar) | Desprende o player: arraste-o para onde quiser. A posição é lembrada. |
 | | Layout vertical (solto) | ✓ = player solto em coluna (botões, capa e baterias empilhados). |
+| | Travar posição (solto) | ✓ = o player não pode ser arrastado e sempre abre no mesmo lugar. Útil para posicioná-lo fora de outros apps de barra de tarefas. |
 | | Atrás das janelas (solto) | ✓ = fica atrás das janelas, como um widget da área de trabalho. Sobre a barra de tarefas e no **Win+D** ele continua visível. |
 | **Exibir** | Controles de mídia | ✓ = mostra botões, capa, título e espectro. |
 | | Bateria dos dispositivos | ✓ = mostra os indicadores de bateria. Um dos dois sempre fica visível. |

@@ -44,6 +44,7 @@ namespace MiniPlayer
                     new() { Text = L.S("float"), Checked = () => App.Floating,  Click = () => Float(true) },
                     MenuNode.Sep,
                     new() { Text = L.S("vert"),     Checked = () => App.FloatVertical, Enabled = () => App.Floating, Click = () => App.SetFloatVertical(!App.FloatVertical) },
+                    new() { Text = L.S("lock"),     Checked = () => App.FloatLocked,   Enabled = () => App.Floating, Click = () => App.SetFloatLocked(!App.FloatLocked) },
                     new() { Text = L.S("behind"),   Checked = () => App.FloatBehind,   Enabled = () => App.Floating, Click = () => App.SetBehind(!App.FloatBehind) },
                 }},
                 new() { Text = L.S("show"), Children = new()

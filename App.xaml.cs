@@ -22,7 +22,7 @@ namespace MiniPlayer
         [DllImport("user32.dll")] static extern IntPtr FindWindow(string c, string w);
 
         static readonly string Cfg = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "MiniPlayer.txt");
-        public static bool Floating, ShowBattery = true, FloatBehind, HidePlayer, FloatVertical;
+        public static bool Floating, ShowBattery = true, FloatBehind, HidePlayer, FloatVertical, FloatLocked;
         public static int Theme;
         public const int DynamicTheme = 10;
         public static event Action LookChanged; // tema ou "ocultar player" mudou
@@ -70,7 +70,7 @@ namespace MiniPlayer
             DispatcherUnhandledException += (_, ev) => ev.Handled = true;
             TaskScheduler.UnobservedTaskException += (_, ev) => ev.SetObserved();
             FixStartupEntry();
-            try { var p = File.ReadAllText(Cfg).Split(';'); Floating = p[0] == "1"; FloatX = double.Parse(p[1], CultureInfo.InvariantCulture); FloatY = double.Parse(p[2], CultureInfo.InvariantCulture); if (p.Length > 3) ShowBattery = p[3] == "1"; if (p.Length > 4) FloatBehind = p[4] == "1"; if (p.Length > 5) HidePlayer = p[5] == "1"; if (p.Length > 6) Theme = int.Parse(p[6]); if (p.Length > 7) FloatVertical = p[7] == "1"; } catch { }
+            try { var p = File.ReadAllText(Cfg).Split(';'); Floating = p[0] == "1"; FloatX = double.Parse(p[1], CultureInfo.InvariantCulture); FloatY = double.Parse(p[2], CultureInfo.InvariantCulture); if (p.Length > 3) ShowBattery = p[3] == "1"; if (p.Length > 4) FloatBehind = p[4] == "1"; if (p.Length > 5) HidePlayer = p[5] == "1"; if (p.Length > 6) Theme = int.Parse(p[6]); if (p.Length > 7) FloatVertical = p[7] == "1"; if (p.Length > 8) FloatLocked = p[8] == "1"; } catch { }
             Sync();
             SetupTray();
             TrimMemory();
@@ -166,6 +166,7 @@ namespace MiniPlayer
         }
         public static void SetBehind(bool on) { FloatBehind = on; Save(); }
         public static void SetFloatVertical(bool on) { FloatVertical = on; Save(); }
+        public static void SetFloatLocked(bool on) { FloatLocked = on; Save(); }
         public static void SetBattery(bool on) { if (!on && HidePlayer) return; ShowBattery = on; Save(); RefreshBatteries(); }
         // Encerramento limpo: fecha janelas (solta ganchos), para a captura de áudio e garante que o processo termina
         static bool quitting;
@@ -251,7 +252,7 @@ namespace MiniPlayer
             t.Start();
         }
 
-        public static void Save() { try { File.WriteAllText(Cfg, string.Create(CultureInfo.InvariantCulture, $"{(Floating ? 1 : 0)};{FloatX};{FloatY};{(ShowBattery ? 1 : 0)};{(FloatBehind ? 1 : 0)};{(HidePlayer ? 1 : 0)};{Theme};{(FloatVertical ? 1 : 0)}")); } catch { } }
+        public static void Save() { try { File.WriteAllText(Cfg, string.Create(CultureInfo.InvariantCulture, $"{(Floating ? 1 : 0)};{FloatX};{FloatY};{(ShowBattery ? 1 : 0)};{(FloatBehind ? 1 : 0)};{(HidePlayer ? 1 : 0)};{Theme};{(FloatVertical ? 1 : 0)};{(FloatLocked ? 1 : 0)}")); } catch { } }
 
         // Decide quais barras recebem player: fixo = todas as barras; solto = só a principal
         public void Sync()
