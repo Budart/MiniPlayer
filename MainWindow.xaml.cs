@@ -306,6 +306,7 @@ namespace MiniPlayer
                 foreach (UIElement r in Spectrum.Children) r.Visibility = Visibility.Visible;
             }
             UpdateBatteries();
+            if (dynBgGrad != null) dynBgGrad.EndPoint = vertical ? new Point(0, 1) : new Point(1, 0);
         }
 
         // Monitor sem bandeja: acha (via acessibilidade) o item mais à esquerda do grupo da direita (relógio etc.)
@@ -368,11 +369,11 @@ namespace MiniPlayer
             var th = App.CurrentTheme;
             bool dyn = App.Theme == App.DynamicTheme;
             fg = dyn ? dynFg : B(th.Fg);
-            Root.Background = dyn ? dynBg : B(th.Bg);
+            Root.Background = dyn ? DynBg : B(th.Bg);
             // temas com fundo: leve recuo (3 px) para o fundo parecer "dentro" da barra, sem encostar nas bordas dela
             Root.Margin = App.Theme == 0 ? new Thickness(0) : new Thickness(3);
             TitleText.Foreground = fg; ArtistText.Foreground = dyn ? dynFg2 : B(th.Fg2); NoArt.Foreground = fg;
-            PrevBtn.Foreground = PlayBtn.Foreground = NextBtn.Foreground = SwapBtn.Foreground = fg;
+            PrevBtn.Foreground = PlayBtn.Foreground = NextBtn.Foreground = SwapBtn.Foreground = fg; SwapIcon.Stroke = fg;
             ProgFill.Background = ProgTrack.Background = fg;
             SizeScale.ScaleX = SizeScale.ScaleY = App.SizeScales[App.PlayerSize];
             foreach (Rectangle r in Spectrum.Children) r.Fill = th.Spectrum != null ? B(th.Spectrum) : accent;
@@ -385,7 +386,20 @@ namespace MiniPlayer
 
         // ---- Tema dinâmico: usa a cor da capa (já calculada para o espectro, numa miniatura de 16x16).
         // Custo: 3 pincéis reaproveitados e uma transição curta de cor na troca de faixa — sem memória extra relevante.
-        readonly SolidColorBrush dynBg = new(Color.FromArgb(0xE6, 0x20, 0x20, 0x20)), dynFg = new(Colors.White), dynFg2 = new(Color.FromArgb(0xBB, 0xFF, 0xFF, 0xFF));
+        // fundo em degradê: 2 cores da capa, no sentido do comprimento do player (horizontal ou vertical)
+        readonly GradientStop dynStop1 = new(Color.FromArgb(0xE6, 0x20, 0x20, 0x20), 0), dynStop2 = new(Color.FromArgb(0xE6, 0x20, 0x20, 0x20), 1);
+        LinearGradientBrush dynBgGrad;
+        LinearGradientBrush DynBg
+        {
+            get
+            {
+                dynBgGrad ??= new LinearGradientBrush { GradientStops = { dynStop1, dynStop2 } };
+                dynBgGrad.StartPoint = new Point(0, 0); dynBgGrad.EndPoint = vertical ? new Point(0, 1) : new Point(1, 0);
+                return dynBgGrad;
+            }
+        }
+        Color accent2 = Colors.White;
+        readonly SolidColorBrush dynFg = new(Colors.White), dynFg2 = new(Color.FromArgb(0xBB, 0xFF, 0xFF, 0xFF));
         Color lastDyn = Color.FromArgb(0, 0, 0, 1);
         void ApplyDynamic(bool animate)
         {
@@ -394,15 +408,18 @@ namespace MiniPlayer
             lastDyn = a;
             bool none = a == Colors.White; // sem capa: cinza neutro
             // fundo: cor da capa escurecida (legível com texto claro), quase opaca
-            Color bg = none ? Color.FromArgb(0xE6, 0x22, 0x24, 0x28) : Color.FromArgb(0xE6, (byte)(a.R * 0.32), (byte)(a.G * 0.32), (byte)(a.B * 0.32));
+            Color Dark(Color c) => Color.FromArgb(0xE6, (byte)(c.R * 0.32), (byte)(c.G * 0.32), (byte)(c.B * 0.32));
+            Color bg1 = none ? Color.FromArgb(0xE6, 0x22, 0x24, 0x28) : Dark(a);
+            Color bg2 = none ? Color.FromArgb(0xE6, 0x16, 0x17, 0x1A) : Dark(accent2);
             // texto: branco levemente tingido; secundário: a própria cor da capa clareada
             Color f1 = none ? Colors.White : Mix(a, Colors.White, 0.85);
             Color f2 = none ? Color.FromArgb(0xBB, 0xFF, 0xFF, 0xFF) : WithA(Mix(a, Colors.White, 0.45), 0xDD);
-            Set(dynBg, bg); Set(dynFg, f1); Set(dynFg2, f2);
-            void Set(SolidColorBrush b, Color c)
+            Anim(dynStop1, GradientStop.ColorProperty, bg1); Anim(dynStop2, GradientStop.ColorProperty, bg2);
+            Anim(dynFg, SolidColorBrush.ColorProperty, f1); Anim(dynFg2, SolidColorBrush.ColorProperty, f2);
+            void Anim(Animatable o, DependencyProperty p, Color c)
             {
-                if (!animate) { b.BeginAnimation(SolidColorBrush.ColorProperty, null); b.Color = c; return; }
-                b.BeginAnimation(SolidColorBrush.ColorProperty, new System.Windows.Media.Animation.ColorAnimation(c, TimeSpan.FromMilliseconds(450)));
+                if (!animate) { o.BeginAnimation(p, null); o.SetValue(p, c); return; }
+                o.BeginAnimation(p, new ColorAnimation(c, TimeSpan.FromMilliseconds(450)));
             }
         }
         static Color Mix(Color a, Color b, double t) => Color.FromRgb((byte)(a.R + (b.R - a.R) * t), (byte)(a.G + (b.G - a.G) * t), (byte)(a.B + (b.B - a.B) * t));
@@ -536,7 +553,7 @@ namespace MiniPlayer
             double cycle = TextWidth(curTitle + gap);                  // distância até a 2ª cópia ocupar o lugar da 1ª
             TitleText.TextTrimming = TextTrimming.None; TitleText.ClearValue(WidthProperty);
             TitleText.Text = curTitle + gap + curTitle;                 // duas cópias: o loop fica contínuo, sem "pulo"
-            var a = new DoubleAnimation(0, -cycle, TimeSpan.FromSeconds(cycle / 30)) { RepeatBehavior = RepeatBehavior.Forever }; // ~30 px/s
+            var a = new DoubleAnimation(0, -cycle, TimeSpan.FromSeconds(cycle / 60)) { RepeatBehavior = RepeatBehavior.Forever }; // ~60 px/s
             titleShift.BeginAnimation(TranslateTransform.XProperty, a);
         }
 
@@ -662,27 +679,36 @@ namespace MiniPlayer
         }
 
         // Cor predominante (mais saturada) da capa
-        static Color Accent(BitmapSource src)
+        // Cor principal (para espectro/tema) e uma 2ª cor (lado oposto da capa) para o degradê
+        static (Color main, Color second) AccentPair(BitmapSource src)
         {
             try
             {
                 var small = new FormatConvertedBitmap(new TransformedBitmap(src, new ScaleTransform(16.0 / src.PixelWidth, 16.0 / src.PixelHeight)), PixelFormats.Bgra32, null, 0);
                 int w = small.PixelWidth, h = small.PixelHeight;
                 var px = new byte[w * h * 4]; small.CopyPixels(px, w * 4, 0);
-                double r = 0, g = 0, b = 0, wt = 0;
+                var sum = new double[3, 4]; // [todos, esquerda, direita] x [r,g,b,peso]
                 for (int i = 0; i < px.Length; i += 4)
                 {
-                    int B = px[i], G = px[i + 1], R = px[i + 2];
+                    int B = px[i], G = px[i + 1], R = px[i + 2], x = (i / 4) % w;
                     int mx = Math.Max(R, Math.Max(G, B)), mn = Math.Min(R, Math.Min(G, B));
                     double sat = mx == 0 ? 0 : (mx - mn) / (double)mx, k = 0.02 + sat * sat * (mx / 255.0);
-                    r += R * k; g += G * k; b += B * k; wt += k;
+                    foreach (int part in new[] { 0, x < w / 2 ? 1 : 2 }) { sum[part, 0] += R * k; sum[part, 1] += G * k; sum[part, 2] += B * k; sum[part, 3] += k; }
                 }
-                r /= wt; g /= wt; b /= wt;
-                double max = Math.Max(r, Math.Max(g, b)), f = max < 1 ? 1 : 255 / max; // clareia até o máximo
-                return Color.FromRgb((byte)(r * f), (byte)(g * f), (byte)(b * f));
+                Color Of(int part)
+                {
+                    double r = sum[part, 0] / sum[part, 3], g = sum[part, 1] / sum[part, 3], b = sum[part, 2] / sum[part, 3];
+                    double max = Math.Max(r, Math.Max(g, b)), f = max < 1 ? 1 : 255 / max; // clareia até o máximo
+                    return Color.FromRgb((byte)(r * f), (byte)(g * f), (byte)(b * f));
+                }
+                Color main = Of(0), l = Of(1), rr = Of(2);
+                Color second = Distance(l, main) > Distance(rr, main) ? l : rr;
+                if (Distance(second, main) < 40) second = Color.FromRgb((byte)(main.R * 0.55), (byte)(main.G * 0.55), (byte)(main.B * 0.55)); // capa de uma cor só: tom mais escuro
+                return (main, second);
             }
-            catch { return Colors.White; }
+            catch { return (Colors.White, Colors.White); }
         }
+        static double Distance(Color a, Color b) => Math.Abs(a.R - b.R) + Math.Abs(a.G - b.G) + Math.Abs(a.B - b.B);
 
 
         async Task InitMedia()
@@ -825,7 +851,7 @@ namespace MiniPlayer
                     using var ms = new MemoryStream(); await st.CopyToAsync(ms); ms.Position = 0;
                     var bmp = new BitmapImage(); bmp.BeginInit(); bmp.CacheOption = BitmapCacheOption.OnLoad; bmp.DecodePixelWidth = 160; /* nítido até ~500% de escala */ bmp.StreamSource = ms; bmp.EndInit(); bmp.Freeze();
                     Art.Source = bmp; NoArt.Visibility = Visibility.Collapsed;
-                    accent.Color = Accent(bmp);
+                    (var c1, accent2) = AccentPair(bmp); accent.Color = c1;
                     if (App.Theme == App.DynamicTheme) ApplyDynamic(true);
                 }
                 if (p.Thumbnail == null && App.Theme == App.DynamicTheme) ApplyDynamic(true);
