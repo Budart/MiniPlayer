@@ -361,18 +361,45 @@ namespace MiniPlayer
         void ApplyLook()
         {
             var th = App.CurrentTheme;
-            fg = B(th.Fg);
-            Root.Background = B(th.Bg);
+            bool dyn = App.Theme == App.DynamicTheme;
+            fg = dyn ? dynFg : B(th.Fg);
+            Root.Background = dyn ? dynBg : B(th.Bg);
             // temas com fundo: leve recuo (3 px) para o fundo parecer "dentro" da barra, sem encostar nas bordas dela
             Root.Margin = App.Theme == 0 ? new Thickness(0) : new Thickness(3);
-            TitleText.Foreground = fg; ArtistText.Foreground = B(th.Fg2); NoArt.Foreground = fg;
+            TitleText.Foreground = fg; ArtistText.Foreground = dyn ? dynFg2 : B(th.Fg2); NoArt.Foreground = fg;
             PrevBtn.Foreground = PlayBtn.Foreground = NextBtn.Foreground = fg;
             foreach (Rectangle r in Spectrum.Children) r.Fill = th.Spectrum != null ? B(th.Spectrum) : accent;
             var vis = App.HidePlayer ? Visibility.Collapsed : Visibility.Visible;
             Controls.Visibility = Spectrum.Visibility = ArtBox.Visibility = InfoPanel.Visibility = vis;
             if (vertical) InfoPanel.Visibility = Visibility.Collapsed; // barra lateral: sem textos
             UpdateBatteries();
+            if (dyn) ApplyDynamic(false);
         }
+
+        // ---- Tema dinâmico: usa a cor da capa (já calculada para o espectro, numa miniatura de 16x16).
+        // Custo: 3 pincéis reaproveitados e uma transição curta de cor na troca de faixa — sem memória extra relevante.
+        readonly SolidColorBrush dynBg = new(Color.FromArgb(0xE6, 0x20, 0x20, 0x20)), dynFg = new(Colors.White), dynFg2 = new(Color.FromArgb(0xBB, 0xFF, 0xFF, 0xFF));
+        Color lastDyn = Color.FromArgb(0, 0, 0, 1);
+        void ApplyDynamic(bool animate)
+        {
+            var a = accent.Color;
+            if (animate && a == lastDyn) return; // mesma capa (ex.: só pausou): nada a fazer
+            lastDyn = a;
+            bool none = a == Colors.White; // sem capa: cinza neutro
+            // fundo: cor da capa escurecida (legível com texto claro), quase opaca
+            Color bg = none ? Color.FromArgb(0xE6, 0x22, 0x24, 0x28) : Color.FromArgb(0xE6, (byte)(a.R * 0.32), (byte)(a.G * 0.32), (byte)(a.B * 0.32));
+            // texto: branco levemente tingido; secundário: a própria cor da capa clareada
+            Color f1 = none ? Colors.White : Mix(a, Colors.White, 0.85);
+            Color f2 = none ? Color.FromArgb(0xBB, 0xFF, 0xFF, 0xFF) : WithA(Mix(a, Colors.White, 0.45), 0xDD);
+            Set(dynBg, bg); Set(dynFg, f1); Set(dynFg2, f2);
+            void Set(SolidColorBrush b, Color c)
+            {
+                if (!animate) { b.BeginAnimation(SolidColorBrush.ColorProperty, null); b.Color = c; return; }
+                b.BeginAnimation(SolidColorBrush.ColorProperty, new System.Windows.Media.Animation.ColorAnimation(c, TimeSpan.FromMilliseconds(450)));
+            }
+        }
+        static Color Mix(Color a, Color b, double t) => Color.FromRgb((byte)(a.R + (b.R - a.R) * t), (byte)(a.G + (b.G - a.G) * t), (byte)(a.B + (b.B - a.B) * t));
+        static Color WithA(Color c, byte alpha) => Color.FromArgb(alpha, c.R, c.G, c.B);
 
         // Menu do botão direito: as mesmas opções do ícone da bandeja (ações centralizadas no App)
         void ShowMenu()
@@ -550,7 +577,9 @@ namespace MiniPlayer
                     var bmp = new BitmapImage(); bmp.BeginInit(); bmp.CacheOption = BitmapCacheOption.OnLoad; bmp.DecodePixelWidth = 160; /* nítido até ~500% de escala */ bmp.StreamSource = ms; bmp.EndInit(); bmp.Freeze();
                     Art.Source = bmp; NoArt.Visibility = Visibility.Collapsed;
                     accent.Color = Accent(bmp);
+                    if (App.Theme == App.DynamicTheme) ApplyDynamic(true);
                 }
+                if (p.Thumbnail == null && App.Theme == App.DynamicTheme) ApplyDynamic(true);
             }
             catch { }
         }

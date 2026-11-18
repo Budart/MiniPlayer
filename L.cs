@@ -38,6 +38,7 @@ namespace MiniPlayer
             ["t7"] = new[] { "Púrpura", "Purple", "Púrpura", "Pourpre", "Purpur" },
             ["t8"] = new[] { "Rubi", "Ruby", "Rubí", "Rubis", "Rubin" },
             ["t9"] = new[] { "Alto contraste", "High contrast", "Alto contraste", "Contraste élevé", "Hoher Kontrast" },
+            ["t10"] = new[] { "Dinâmico (cores da capa)", "Dynamic (album colors)", "Dinámico (colores del álbum)", "Dynamique (couleurs de l'album)", "Dynamisch (Albumfarben)" },
         };
 
         public static string S(string key) => T.TryGetValue(key, out var v) ? v[Lang] : key;

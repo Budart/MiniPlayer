@@ -24,6 +24,7 @@ namespace MiniPlayer
         static readonly string Cfg = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "MiniPlayer.txt");
         public static bool Floating, ShowBattery = true, FloatBehind, HidePlayer, FloatVertical;
         public static int Theme;
+        public const int DynamicTheme = 10;
         public static event Action LookChanged; // tema ou "ocultar player" mudou
 
         // Temas: fundo, texto principal, texto secundário, cor fixa do espectro (null = cor da capa)
@@ -40,6 +41,7 @@ namespace MiniPlayer
             new("Púrpura",               "#E62A1240", "#FFE1BEE7", "#AACE93D8", "#FFBA68C8"),
             new("Rubi",                  "#E63A0E14", "#FFFFCDD2", "#AAEF9A9A", "#FFEF5350"),
             new("Alto contraste",        "#FF000000", "#FFFFFF00", "#FFFFFFFF", "#FFFFFF00"),
+            new("Dinâmico",              "#E6202020", "#FFFFFFFF", "#BBFFFFFF", null), // cores calculadas da capa (ver MainWindow.ApplyDynamic)
         };
         public static ThemeDef CurrentTheme => Themes[Math.Clamp(Theme, 0, Themes.Length - 1)];
         public static void SetTheme(int i) { Theme = i; Save(); LookChanged?.Invoke(); }
