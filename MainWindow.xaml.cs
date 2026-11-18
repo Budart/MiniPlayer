@@ -468,7 +468,12 @@ namespace MiniPlayer
                 at.Start();
                 Closed += (_, __) => at.Stop();
             }
-            volTimer.Tick += (_, __) => { volTimer.Stop(); VolBadge.Visibility = Visibility.Collapsed; };
+            volTimer.Tick += (_, __) => { volTimer.Stop(); if (!ArtBox.IsMouseOver) VolBadge.Visibility = Visibility.Collapsed; else VolHint.Visibility = Visibility.Visible; };
+            // passar o mouse na capa mostra o volume atual com ▲▼, convidando a rolar
+            ArtBox.MouseEnter += (_, __) => { VolHint.Visibility = Visibility.Visible; ChangeVolume(0); };
+            ArtBox.MouseLeave += (_, __) => { if (!volTimer.IsEnabled) VolBadge.Visibility = Visibility.Collapsed; };
+            // dica de primeiro uso: até a pessoa usar a rolagem uma vez
+            if (!App.VolumeHintDone) Root.ToolTip = L.S("volume");
             InfoPanel.MouseEnter += (_, __) => StartMarquee();
             InfoPanel.MouseLeave += (_, __) => ResetTitle();
         }
@@ -480,7 +485,7 @@ namespace MiniPlayer
             {
                 Layout.Children.Add(Progress);
                 Grid.SetRow(Progress, 2); Grid.SetColumn(Progress, 0);
-                Progress.Width = 30; Progress.HorizontalAlignment = HorizontalAlignment.Center; Progress.Margin = new Thickness(0, 3, 0, 0);
+                Progress.Width = 33; Progress.HorizontalAlignment = HorizontalAlignment.Center; Progress.Margin = new Thickness(0, 3, 0, 0);
             }
             else
             {
@@ -525,18 +530,24 @@ namespace MiniPlayer
                         try { pn = System.Diagnostics.Process.GetProcessById((int)sc.GetProcessID).ProcessName.ToLowerInvariant(); } catch { continue; }
                         if (pn.Length < 2 || !(pn.Contains(app) || app.Contains(pn))) continue;
                         var nv = Math.Clamp(sc.SimpleAudioVolume.Volume + dir * 0.02f, 0f, 1f);
-                        sc.SimpleAudioVolume.Volume = nv; v = nv;
+                        if (dir != 0) sc.SimpleAudioVolume.Volume = nv;
+                        v = Math.Max(v ?? 0, nv);
                     }
                 }
                 if (v == null)
                 {
                     var ev = dev.AudioEndpointVolume;
                     v = Math.Clamp(ev.MasterVolumeLevelScalar + dir * 0.02f, 0f, 1f);
-                    ev.MasterVolumeLevelScalar = v.Value;
+                    if (dir != 0) ev.MasterVolumeLevelScalar = v.Value;
                 }
-                VolText.Text = ((int)Math.Round(v.Value * 100)).ToString();
+                int pct = (int)Math.Round(v.Value * 100);
+                VolText.Text = pct.ToString();
+                VolIcon.Text = pct == 0 ? "\uE74F" : pct < 34 ? "\uE993" : pct < 67 ? "\uE994" : "\uE995"; // mudo / baixo / médio / alto
                 VolBadge.Visibility = Visibility.Visible;
+                if (dir == 0) return; // só mostrando (mouse sobre a capa)
+                VolHint.Visibility = Visibility.Collapsed;
                 volTimer.Stop(); volTimer.Start();
+                if (!App.VolumeHintDone) { App.VolumeHintDone = true; App.Save(); foreach (var w in Application.Current.Windows.OfType<MainWindow>()) w.Root.ClearValue(ToolTipProperty); }
             }
             catch { }
         }

@@ -23,14 +23,21 @@
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
       </Grid.ColumnDefinitions>
-      <Border x:Name="ArtBox" Grid.Column="1" Margin="6,0,0,0" Width="30" Height="30" CornerRadius="4" ClipToBounds="True" Background="#22FFFFFF">
+      <Border x:Name="ArtBox" Grid.Column="1" Margin="6,0,0,0" Width="33" Height="30" CornerRadius="4" ClipToBounds="True" Background="#22FFFFFF">
         <Grid>
           <TextBlock x:Name="NoArt" Text="&#xE8D6;" FontFamily="Segoe MDL2 Assets" Foreground="White"
                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
           <Image x:Name="Art" Stretch="UniformToFill"/>
           <!-- volume ao rolar o mouse (aparece por 1 s sobre a capa) -->
+          <!-- volume: aparece ao passar o mouse na capa (com setas ▲▼ convidando a rolar) e por 1 s ao rolar -->
           <Border x:Name="VolBadge" Background="#B0000000" Visibility="Collapsed" IsHitTestVisible="False">
-            <TextBlock x:Name="VolText" Foreground="White" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+              <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <TextBlock x:Name="VolIcon" Text="&#xE767;" FontFamily="Segoe MDL2 Assets" FontSize="9" Foreground="White" VerticalAlignment="Center" Margin="0,0,2,0"/>
+                <TextBlock x:Name="VolText" Foreground="White" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center"/>
+              </StackPanel>
+              <TextBlock x:Name="VolHint" Text="▲▼" Foreground="#CCFFFFFF" FontSize="6" HorizontalAlignment="Center" Margin="0,1,0,0"/>
+            </StackPanel>
           </Border>
         </Grid>
       </Border>
