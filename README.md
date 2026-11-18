@@ -3,6 +3,10 @@
 Mini player de mídia que se encaixa na barra de tarefas do Windows 10/11, com espectro de áudio e a bateria dos seus dispositivos sem fio.
 
 ## Download e instalação
+Em [Releases](../../releases/latest) há duas opções:
+- **MiniPlayer-Setup.exe** (recomendado): instala para o seu usuário, sem pedir administrador, cria atalho no menu Iniciar e já configura "Iniciar com o Windows".
+- **MiniPlayer.exe** (portátil): não instala nada, é só abrir.
+
 1. Baixe o **MiniPlayer.exe** em [Releases](../../releases/latest).
 2. Abra o arquivo. Não precisa instalar nada: ele é portátil e pode ficar em qualquer pasta.
 3. O player aparece na barra de tarefas. Para fechar, use o menu do botão direito.
@@ -10,6 +14,11 @@ Mini player de mídia que se encaixa na barra de tarefas do Windows 10/11, com e
 > Na primeira execução o Windows SmartScreen pode avisar sobre "editor desconhecido": clique em **Mais informações → Executar assim mesmo**.
 
 ## O que ele faz
+- **Barra de progresso** (clique para avançar/voltar) e **título que rola** ao passar o mouse quando é longo.
+- **Volume pela rolagem do mouse** sobre o player (passe o mouse na capa para ver o volume atual).
+- **Várias mídias abertas?** O player mostra a que está tocando com som; o botão ⇄ alterna manualmente. Prévias do YouTube ao passar o mouse são ignoradas.
+- **Tempo restante de bateria** ao passar o mouse sobre um dispositivo.
+- **Tamanhos** pequeno, médio e grande; temas com degradê, incluindo o **Dinâmico** (cores da capa).
 - **Controle de qualquer mídia**: voltar, play/pause e avançar, com capa, título e artista do que estiver tocando no PC (Spotify, Tidal, YouTube e outros sites no navegador, players de vídeo...).
 - **Espectro de áudio** discreto atrás dos botões, na cor predominante da capa.
 - **Bateria dos dispositivos** em tempo real, com ícone por tipo e um raio quando está carregando (passe o mouse para ver o nome):
