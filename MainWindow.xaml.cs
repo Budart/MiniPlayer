@@ -235,8 +235,8 @@ namespace MiniPlayer
         static int tipsOpen;
         static MainWindow()
         {
-            EventManager.RegisterClassHandler(typeof(ToolTip), ToolTip.OpenedEvent, new RoutedEventHandler((_, __) => tipsOpen++));
-            EventManager.RegisterClassHandler(typeof(ToolTip), ToolTip.ClosedEvent, new RoutedEventHandler((_, __) => tipsOpen = Math.Max(0, tipsOpen - 1)));
+            EventManager.RegisterClassHandler(typeof(System.Windows.Controls.ToolTip), System.Windows.Controls.ToolTip.OpenedEvent, new RoutedEventHandler((_, __) => tipsOpen++));
+            EventManager.RegisterClassHandler(typeof(System.Windows.Controls.ToolTip), System.Windows.Controls.ToolTip.ClosedEvent, new RoutedEventHandler((_, __) => tipsOpen = Math.Max(0, tipsOpen - 1)));
         }
         void ApplyZ()
         {
