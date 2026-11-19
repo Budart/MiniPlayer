@@ -23,8 +23,10 @@
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/>
       </Grid.ColumnDefinitions>
-      <Border x:Name="ArtBox" Grid.Column="1" Margin="6,0,0,0" Width="33" Height="30" CornerRadius="4" ClipToBounds="True" Background="#22FFFFFF">
+      <Border x:Name="ArtBox" Grid.Column="1" Margin="6,0,0,0" Width="33" Height="30" CornerRadius="3" Background="#22FFFFFF">
         <Grid>
+          <!-- cantos levemente arredondados na capa (Border sozinho não recorta a imagem) -->
+          <Grid.Clip><RectangleGeometry Rect="0,0,33,30" RadiusX="3" RadiusY="3"/></Grid.Clip>
           <TextBlock x:Name="NoArt" Text="&#xE8D6;" FontFamily="Segoe MDL2 Assets" Foreground="White"
                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
           <Image x:Name="Art" Stretch="UniformToFill"/>
