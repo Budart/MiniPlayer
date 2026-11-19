@@ -65,6 +65,7 @@ namespace MiniPlayer
             bool media = !Settings.HidePlayer;
             static Visibility V(bool on) => on ? Visibility.Visible : Visibility.Collapsed;
             Controls.Visibility = Spectrum.Visibility = V(media);
+            SwapBtn.Visibility = V(media && multiMedia);
             ArtBox.Visibility = V(media && ShowArt);
             InfoPanel.Visibility = V(media && ShowTitle);
             UpdateProgress();

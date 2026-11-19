@@ -264,6 +264,7 @@ namespace MiniPlayer
                 Controls.Margin = new Thickness(0, 6, 0, 0);
                 ArtBox.Margin = new Thickness(0, 6, 0, 0);
                 MoveProgress(true);
+                MoveSwap(true);
                 BatteryPanel.Orientation = Orientation.Vertical; BatteryPanel.Margin = new Thickness(0, 4, 0, 8);
                 // espectro com menos barras (uma sim, uma não)
                 for (int i = 0; i < Spectrum.Children.Count; i++) Spectrum.Children[i].Visibility = i % 2 == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -281,6 +282,7 @@ namespace MiniPlayer
                 Controls.ClearValue(HorizontalAlignmentProperty); ArtBox.ClearValue(HorizontalAlignmentProperty); BatteryPanel.ClearValue(HorizontalAlignmentProperty);
                 Controls.Margin = new Thickness(0); ArtBox.Margin = new Thickness(6, 0, 0, 0);
                 MoveProgress(false);
+                MoveSwap(false);
                 BatteryPanel.Orientation = Orientation.Horizontal; BatteryPanel.Margin = new Thickness(0, 0, 4, 0);
                 foreach (UIElement r in Spectrum.Children) r.Visibility = Visibility.Visible;
             }
@@ -362,6 +364,24 @@ namespace MiniPlayer
             if (fs) { Topmost = false; SetWindowPos(me, new IntPtr(-2), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010); SetWindowPos(me, fg, 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010); } // atrás da janela cheia
             else ApplyZ();
             Visibility = fs ? Visibility.Hidden : Visibility.Visible;
+        }
+
+        // horizontal: sobre a direita do campo de texto · vertical (sem textos): embaixo dos botões de mídia
+        void MoveSwap(bool toVertical)
+        {
+            (SwapBtn.Parent as Panel)?.Children.Remove(SwapBtn);
+            if (toVertical)
+            {
+                Controls.Children.Add(SwapBtn);
+                SwapBtn.ClearValue(HorizontalAlignmentProperty); SwapBtn.ClearValue(MarginProperty);
+            }
+            else
+            {
+                Layout.Children.Add(SwapBtn); // por último = por cima do texto
+                Grid.SetRow(SwapBtn, 0); Grid.SetColumn(SwapBtn, 2);
+                SwapBtn.HorizontalAlignment = HorizontalAlignment.Right; SwapBtn.Margin = new Thickness(0, 0, 4, 0);
+            }
+            UpdateInfoWidth();
         }
 
         void MoveProgress(bool toVertical)

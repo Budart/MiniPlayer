@@ -49,6 +49,15 @@ namespace MiniPlayer
             // volume: rolagem do mouse em qualquer parte do player
             debounce.Tick += (_, __) => { debounce.Stop(); _ = Refresh(true); };
             Root.MouseWheel += (_, e) => { ChangeVolume(e.Delta > 0 ? 1 : -1); e.Handled = true; };
+            // sobre o título/artista e no botão ⇅: a rolagem troca a mídia (com 2+ abertas); na capa e nos botões continua sendo volume
+            MouseWheelEventHandler switchWheel = (_, e) =>
+            {
+                if (!multiMedia) return;
+                e.Handled = true;
+                SwitchSource(e.Delta < 0 ? 1 : -1); // rolar para baixo = próxima (entra por baixo)
+            };
+            InfoPanel.MouseWheel += switchWheel;
+            SwapBtn.MouseWheel += switchWheel;
             if (isPrimary)
             {
                 var at = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1500) };
@@ -97,7 +106,17 @@ namespace MiniPlayer
         }
 
         // Título: largura fixa com "…"; ao passar o mouse, se não couber, rola em loop infinito para a esquerda
-        const double InfoW = 100;
+        double InfoW => InfoPanel.Width;
+        // campo de texto: 128 px; com o botão ⇅ visível (2+ mídias), os 28 px da direita são dele — a largura do player não muda
+        void UpdateInfoWidth()
+        {
+            bool swap = multiMedia && !vertical;
+            double w = swap ? 100 : 128;
+            if (InfoPanel.Width == w) return;
+            InfoPanel.Width = w;
+            InfoPanel.Margin = new Thickness(8, 0, swap ? 36 : 8, 0);
+            ResetTitle();
+        }
         string curTitle = "";
         readonly TranslateTransform titleShift = new();
         void SetTitle(string t) { if (t == curTitle && TitleText.Text.Length > 0) return; curTitle = t ?? ""; ResetTitle(); if (InfoPanel.IsMouseOver) StartMarquee(); }
@@ -183,23 +202,67 @@ namespace MiniPlayer
             session = pinned ?? auto ?? mgr.GetCurrentSession();
             if (session != null) { session.MediaPropertiesChanged += OnMedia; session.PlaybackInfoChanged += OnPlay; }
             // botão de troca só aparece com mais de uma fonte
-            SwapBtn.Visibility = all.Length > 1 ? Visibility.Visible : Visibility.Collapsed;
+            multiMedia = all.Length > 1;
+            SwapBtn.Visibility = multiMedia && !Settings.HidePlayer ? Visibility.Visible : Visibility.Collapsed;
             SwapBtn.ToolTip = $"{L.S("source")} ({SourceName(session)})";
-            _ = Refresh();
+            UpdateInfoWidth();
+            refreshing = Refresh();
         }
 
-        void Swap_Click(object s, RoutedEventArgs e)
+        void Swap_Click(object s, RoutedEventArgs e) => SwitchSource(1);
+
+        // Troca a mídia (dir: +1 próxima, -1 anterior) em todos os players, com a animação de "roleta"
+        bool multiMedia;
+        Task refreshing = Task.CompletedTask;
+        void SwitchSource(int dir)
         {
             try
             {
+                if (sliding) return; // uma troca por vez (rolagem rápida não empilha animações)
                 var all = mgr.GetSessions().ToArray();
                 if (all.Length < 2) return;
                 int i = Array.FindIndex(all, x => x.SourceAppUserModelId == session?.SourceAppUserModelId);
-                pinnedSource = all[(i + 1) % all.Length].SourceAppUserModelId;
-                foreach (var w in Players) w.immediateUntil = DateTime.Now.AddSeconds(1);
-                foreach (var w in Players) w.Hook();
+                pinnedSource = all[((i + dir) % all.Length + all.Length) % all.Length].SourceAppUserModelId;
+                foreach (var w in Players) { w.immediateUntil = DateTime.Now.AddSeconds(1); _ = w.SlideSwitch(dir); }
             }
             catch { }
+        }
+
+        // ---- Animação: a mídia atual sai por cima e a nova entra por baixo (dir = -1: o contrário) ----
+        // Só mexe em transformações (placa de vídeo), dura ~¼ s e não guarda nada depois.
+        readonly TranslateTransform artSlide = new(), infoSlide = new();
+        bool sliding, slideReady;
+        async Task SlideSwitch(int dir)
+        {
+            if (!slideReady)
+            {
+                slideReady = true;
+                Art.RenderTransform = NoArt.RenderTransform = artSlide;               // dentro do recorte da capa
+                TitleHost.RenderTransform = ArtistText.RenderTransform = infoSlide;   // dentro do campo de texto (recortado)
+            }
+            sliding = true;
+            try
+            {
+                double ah = ArtBox.ActualHeight, ih = InfoPanel.ActualHeight > 0 ? InfoPanel.ActualHeight : 40;
+                await Task.WhenAll(Slide(artSlide, 0, -dir * ah, 110, EasingMode.EaseIn), Slide(infoSlide, 0, -dir * ih, 110, EasingMode.EaseIn));
+                Hook();                                                         // troca de verdade
+                await Task.WhenAny(refreshing, Task.Delay(300));                // espera o título/capa novos (no máximo 0,3 s)
+                await Task.WhenAll(Slide(artSlide, dir * ah, 0, 170, EasingMode.EaseOut), Slide(infoSlide, dir * ih, 0, 170, EasingMode.EaseOut));
+            }
+            finally
+            {
+                artSlide.BeginAnimation(TranslateTransform.YProperty, null); infoSlide.BeginAnimation(TranslateTransform.YProperty, null);
+                artSlide.Y = infoSlide.Y = 0;
+                sliding = false;
+            }
+        }
+        static Task Slide(TranslateTransform t, double from, double to, int ms, EasingMode ease)
+        {
+            var done = new TaskCompletionSource<bool>();
+            var a = new DoubleAnimation(from, to, TimeSpan.FromMilliseconds(ms)) { EasingFunction = new QuadraticEase { EasingMode = ease } };
+            a.Completed += (_, __) => done.TrySetResult(true);
+            t.BeginAnimation(TranslateTransform.YProperty, a);
+            return done.Task;
         }
 
         void OnMedia(object s, object e) => Dispatcher.Invoke(() => _ = Refresh());
@@ -266,7 +329,7 @@ namespace MiniPlayer
         void ApplyTexts()
         {
             if (session == null) SetTitle(L.S("nothing"));
-            if (SwapBtn.Visibility == Visibility.Visible) SwapBtn.ToolTip = $"{L.S("source")} ({SourceName(session)})";
+            if (multiMedia) SwapBtn.ToolTip = $"{L.S("source")} ({SourceName(session)})";
             if (!Settings.VolumeHintDone) Root.ToolTip = L.S("volume");
         }
 
