@@ -123,7 +123,9 @@ namespace MiniPlayer
             Root.MouseLeftButtonDown += (s, e) =>
             {
                 if (!App.Floating || App.FloatLocked || e.OriginalSource is Button) return; // travado: não arrasta
+                double x0 = Left, y0 = Top;
                 dragging = true; DragMove(); dragging = false; KeepInsideMonitor(); App.FloatX = Left; App.FloatY = Top; App.Save();
+                if (Math.Abs(Left - x0) + Math.Abs(Top - y0) < 3 && IsSysTile(e.OriginalSource)) OpenTaskManager();
             };
         }
 
@@ -230,8 +232,15 @@ namespace MiniPlayer
         }
 
         // Camada da janela: acima de tudo (padrão) ou, no modo solto, opcionalmente atrás de todas as janelas
+        static int tipsOpen;
+        static MainWindow()
+        {
+            EventManager.RegisterClassHandler(typeof(ToolTip), ToolTip.OpenedEvent, new RoutedEventHandler((_, __) => tipsOpen++));
+            EventManager.RegisterClassHandler(typeof(ToolTip), ToolTip.ClosedEvent, new RoutedEventHandler((_, __) => tipsOpen = Math.Max(0, tipsOpen - 1)));
+        }
         void ApplyZ()
         {
+            if (tipsOpen > 0) return; // balão de informação aberto: fica por cima do player até fechar
             bool behind = App.Floating && App.FloatBehind && !OverTaskbar() && !DesktopInFront();
             if (Topmost == behind) Topmost = !behind;
             SetWindowPos(new WindowInteropHelper(this).Handle, new IntPtr(behind ? 1 : -1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010);
@@ -609,7 +618,7 @@ namespace MiniPlayer
             sysSep = new Border { Background = fg, Opacity = 0.3, Width = vertical ? 24 : 1, Height = vertical ? 1 : 24,
                 Margin = vertical ? new Thickness(0, 6, 0, 0) : new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
             SysPanel.Children.Add(sysSep);
-            foreach (var (bit, icon, key) in new[] { (1, "ram", "ram"), (2, "cpu", "cpu"), (4, "temp", "cputemp"), (8, "gpu", "gpu"), (16, "temp", "gputemp") })
+            foreach (var (bit, icon, key) in new[] { (1, "ram", "ram"), (2, "cpu", "cpu"), (4, "temp", "cputemp"), (8, "gpu", "gpu"), (16, "temp", "gputemp"), (32, "net", "net") })
             {
                 if (!App.SysOn(bit)) continue;
                 var col = new StackPanel { Orientation = Orientation.Vertical, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center,
@@ -621,20 +630,40 @@ namespace MiniPlayer
                 col.Children.Add(val);
                 string name = L.S(key); int b = bit;
                 col.ToolTip = name;
-                col.ToolTipOpening += (_, __) => { var v = SysValue(b); col.ToolTip = v < 0 ? $"{name}: {L.S("na")}" : $"{name}: {SysText(b, v)}"; };
-                // duplo clique em qualquer item do monitor abre o Gerenciador de Tarefas
-                col.Cursor = Cursors.Hand;
+                col.ToolTipOpening += (_, __) =>
+                {
+                    if (b == 32) { col.ToolTip = SystemMonitor.NetDown < 0 ? $"{name}: {L.S("na")}" : $"{name}: ↓ {Mbps(SystemMonitor.NetDown, true)}   ↑ {Mbps(SystemMonitor.NetUp, true)}"; return; }
+                    var v = SysValue(b); col.ToolTip = v < 0 ? $"{name}: {L.S("na")}" : $"{name}: {SysText(b, v)}";
+                };
+                // clique em qualquer item do monitor abre o Gerenciador de Tarefas
+                col.Cursor = Cursors.Hand; col.Tag = "sys";
                 col.PreviewMouseLeftButtonDown += (_, e) =>
                 {
-                    if (e.ClickCount != 2) return;
-                    e.Handled = true;
-                    try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("taskmgr.exe") { UseShellExecute = true }); } catch { }
+                    if (App.Floating && !App.FloatLocked) return; // solto: decide depois do arraste (clique sem mover = abrir)
+                    e.Handled = true; OpenTaskManager();
                 };
                 SysPanel.Children.Add(col);
                 sysTiles.Add((bit, val));
             }
             UpdateSeparator();
             UpdateSystemValues();
+        }
+        static void OpenTaskManager()
+        {
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("taskmgr.exe") { UseShellExecute = true }); } catch { }
+        }
+        static bool IsSysTile(object src)
+        {
+            for (var d = src as DependencyObject; d != null; d = d is Visual || d is System.Windows.Media.Media3D.Visual3D ? VisualTreeHelper.GetParent(d) : LogicalTreeHelper.GetParent(d))
+                if (d is FrameworkElement fe && "sys".Equals(fe.Tag)) return true;
+            return false;
+        }
+        // velocidade em megabits/s (como os planos de internet): 0,8 Mb · 54 Mb · 1,2 Gb
+        static string Mbps(double bytesPerSec, bool full = false)
+        {
+            double mb = bytesPerSec * 8 / 1_000_000;
+            string t = mb >= 1000 ? (mb / 1000).ToString(mb >= 10000 ? "0" : "0.0") + " Gb" : mb >= 10 ? mb.ToString("0") + " Mb" : mb.ToString("0.0") + " Mb";
+            return full ? t + "/s" : t;
         }
         static int SysValue(int bit) => bit switch { 1 => SystemMonitor.Ram, 2 => SystemMonitor.Cpu, 4 => SystemMonitor.CpuTemp, 8 => SystemMonitor.Gpu, _ => SystemMonitor.GpuTemp };
         static string SysText(int bit, int v) => bit is 4 or 16 ? v + "°C" : v + "%";
@@ -643,6 +672,7 @@ namespace MiniPlayer
         {
             foreach (var (bit, val) in sysTiles)
             {
+                if (bit == 32) { string nt = SystemMonitor.NetDown < 0 ? "--" : "↓" + Mbps(SystemMonitor.NetDown); if (val.Text != nt) val.Text = nt; continue; }
                 int v = SysValue(bit);
                 string t = v < 0 ? "--" : SysText(bit, v);
                 if (val.Text != t) val.Text = t;
@@ -686,6 +716,10 @@ namespace MiniPlayer
         {
             BatteryPanel.Children.Clear();
             if (!App.ShowBattery) return;
+            // separador sutil entre os controles de mídia e os periféricos (igual ao do monitor do sistema)
+            if (!App.HidePlayer && App.Batteries.Count > 0)
+                BatteryPanel.Children.Add(new Border { Background = fg, Opacity = 0.3, Width = vertical ? 24 : 1, Height = vertical ? 1 : 24,
+                    Margin = vertical ? new Thickness(0, 6, 0, 0) : new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center });
             foreach (var b in App.Batteries)
             {
                 // coluna 1: desenho + % (centralizados); coluna 2: raio, centralizado na altura, colado
@@ -736,6 +770,7 @@ namespace MiniPlayer
             ["cpu"] = "M7.5,6 H16.5 A1.5,1.5 0 0 1 18,7.5 V16.5 A1.5,1.5 0 0 1 16.5,18 H7.5 A1.5,1.5 0 0 1 6,16.5 V7.5 A1.5,1.5 0 0 1 7.5,6 Z M9.5,9.5 H14.5 V14.5 H9.5 Z M9,3.6 V6 M12,3.6 V6 M15,3.6 V6 M9,18 V20.4 M12,18 V20.4 M15,18 V20.4 M3.6,9 H6 M3.6,12 H6 M3.6,15 H6 M18,9 H20.4 M18,12 H20.4 M18,15 H20.4",
             ["gpu"] = "M2.5,5.5 V19.5 M4,7 H21 A1,1 0 0 1 22,8 V15 A1,1 0 0 1 21,16 H4 Z M7,16 V18 H15 V16 " + Circ(9, 11.5, 2.9) + Circ(16.5, 11.5, 2.9) + Circ(9, 11.5, 0.7) + Circ(16.5, 11.5, 0.7),
             ["temp"] = "M10.5,4.8 A1.6,1.6 0 0 1 13.7,4.8 V13.9 A3.3,3.3 0 1 1 10.5,13.9 Z M12.1,8 V15.8 M15.8,6 H17.4 M15.8,8.6 H17.4 M15.8,11.2 H17.4",
+            ["net"] = "M8,4 V18 M4.5,14.5 L8,18 L11.5,14.5 M16,20 V6 M12.5,9.5 L16,6 L19.5,9.5", // ↓ download / ↑ upload
             ["bt"] = "M7,7.5 L17,16.5 L12,21 V3 L17,7.5 L7,16.5",
         };
 

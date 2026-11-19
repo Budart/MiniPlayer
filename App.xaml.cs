@@ -24,7 +24,7 @@ namespace MiniPlayer
         static readonly string Cfg = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "MiniPlayer.txt");
         public static bool Floating, ShowBattery = true, FloatBehind, HidePlayer, FloatVertical, FloatLocked;
         public static bool VolumeHintDone;
-        // Monitor do sistema: itens = bits (1 RAM, 2 CPU, 4 temp. CPU, 8 GPU, 16 temp. GPU)
+        // Monitor do sistema: itens = bits (1 RAM, 2 CPU, 4 temp. CPU, 8 GPU, 16 temp. GPU, 32 rede)
         public static bool ShowSystem;
         public static int SysItems = 1 | 2 | 8;
         public static bool SysOn(int bit) => (SysItems & bit) != 0;
@@ -113,7 +113,7 @@ namespace MiniPlayer
             DispatcherUnhandledException += (_, ev) => ev.Handled = true;
             TaskScheduler.UnobservedTaskException += (_, ev) => ev.SetObserved();
             FixStartupEntry();
-            try { var p = File.ReadAllText(Cfg).Split(';'); Floating = p[0] == "1"; FloatX = double.Parse(p[1], CultureInfo.InvariantCulture); FloatY = double.Parse(p[2], CultureInfo.InvariantCulture); if (p.Length > 3) ShowBattery = p[3] == "1"; if (p.Length > 4) FloatBehind = p[4] == "1"; if (p.Length > 5) HidePlayer = p[5] == "1"; if (p.Length > 6) Theme = int.Parse(p[6]); if (p.Length > 7) FloatVertical = p[7] == "1"; if (p.Length > 8) FloatLocked = p[8] == "1"; if (p.Length > 9) PlayerSize = Math.Clamp(int.Parse(p[9]), 0, 2); if (p.Length > 10) VolumeHintDone = p[10] == "1"; if (p.Length > 11) ShowSystem = p[11] == "1"; if (p.Length > 12) SysItems = int.Parse(p[12]) is > 0 and < 32 and var si ? si : SysItems; } catch { }
+            try { var p = File.ReadAllText(Cfg).Split(';'); Floating = p[0] == "1"; FloatX = double.Parse(p[1], CultureInfo.InvariantCulture); FloatY = double.Parse(p[2], CultureInfo.InvariantCulture); if (p.Length > 3) ShowBattery = p[3] == "1"; if (p.Length > 4) FloatBehind = p[4] == "1"; if (p.Length > 5) HidePlayer = p[5] == "1"; if (p.Length > 6) Theme = int.Parse(p[6]); if (p.Length > 7) FloatVertical = p[7] == "1"; if (p.Length > 8) FloatLocked = p[8] == "1"; if (p.Length > 9) PlayerSize = Math.Clamp(int.Parse(p[9]), 0, 2); if (p.Length > 10) VolumeHintDone = p[10] == "1"; if (p.Length > 11) ShowSystem = p[11] == "1"; if (p.Length > 12) SysItems = int.Parse(p[12]) is > 0 and < 64 and var si ? si : SysItems; } catch { }
             Sync();
             SetupTray();
             SystemMonitor.Run(ShowSystem);

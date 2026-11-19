@@ -56,7 +56,7 @@ namespace MiniPlayer
                     {
                         new() { Text = L.S("sysshow"), Checked = () => App.ShowSystem, Enabled = () => !App.ShowSystem || App.VisibleGroups > 1, Click = () => App.SetSystem(!App.ShowSystem) },
                         MenuNode.Sep,
-                        SysItem("ram", 1), SysItem("cpu", 2), SysItem("cputemp", 4), SysItem("gpu", 8), SysItem("gputemp", 16),
+                        SysItem("ram", 1), SysItem("cpu", 2), SysItem("cputemp", 4), SysItem("gpu", 8), SysItem("gputemp", 16), SysItem("net", 32),
                     }},
                 }},
                 new() { Text = L.S("theme"), Children = temas },

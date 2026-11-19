@@ -16,6 +16,7 @@ namespace MiniPlayer
     static class SystemMonitor
     {
         public static int Ram = -1, Cpu = -1, Gpu = -1, CpuTemp = -1, GpuTemp = -1;
+        public static double NetDown = -1, NetUp = -1; // bytes/s (tráfego atual da placa de rede; não usa a internet)
         public static event Action Updated;
         static Timer timer;
 
@@ -37,13 +38,24 @@ namespace MiniPlayer
                 if (App.SysOn(4)) CpuTemp = ReadCpuTemp(); else { CpuTemp = -1; tzQ.Close(); }
                 if (App.SysOn(8)) Gpu = ReadGpu(); else { Gpu = -1; gpuQ.Close(); }
                 if (App.SysOn(16)) GpuTemp = ReadGpuTemp(); else { GpuTemp = -1; CloseAdapters(); }
+                if (App.SysOn(32)) { NetDown = ReadNet(netDownQ); NetUp = ReadNet(netUpQ); } else { NetDown = NetUp = -1; netDownQ.Close(); netUpQ.Close(); }
                 Updated?.Invoke();
             }
             catch { }
             finally { busy = 0; }
         }
 
-        static void CloseAll() { cpuQ.Close(); tzQ.Close(); gpuQ.Close(); CloseAdapters(); Ram = Cpu = Gpu = CpuTemp = GpuTemp = -1; }
+        static void CloseAll() { cpuQ.Close(); tzQ.Close(); gpuQ.Close(); netDownQ.Close(); netUpQ.Close(); CloseAdapters(); Ram = Cpu = Gpu = CpuTemp = GpuTemp = -1; NetDown = NetUp = -1; }
+
+        // ---- rede: contadores de bytes das placas de rede do Windows (só lê números, nenhum tráfego é gerado) ----
+        static readonly Pdh netDownQ = new(@"\Network Interface(*)\Bytes Received/sec"), netUpQ = new(@"\Network Interface(*)\Bytes Sent/sec");
+        static double ReadNet(Pdh q)
+        {
+            var v = q.Read();
+            if (v.Count == 0) return -1;
+            double best = 0; foreach (var (_, val) in v) best = Math.Max(best, val); // maior placa (evita contar 2x adaptadores virtuais)
+            return best;
+        }
 
         // ---- RAM ----
         [StructLayout(LayoutKind.Sequential)] struct MEMSTATUS { public uint len, load; public ulong total, avail, tpf, apf, tv, av, aev; }

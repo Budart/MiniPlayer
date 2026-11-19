@@ -33,6 +33,7 @@ namespace MiniPlayer
             ["gpu"]      = new[] { "Uso de GPU", "GPU usage", "Uso de GPU", "Utilisation du GPU", "GPU-Auslastung" },
             ["cputemp"]  = new[] { "Temperatura da CPU", "CPU temperature", "Temperatura de la CPU", "Température du CPU", "CPU-Temperatur" },
             ["gputemp"]  = new[] { "Temperatura da GPU", "GPU temperature", "Temperatura de la GPU", "Température du GPU", "GPU-Temperatur" },
+            ["net"]      = new[] { "Velocidade da rede", "Network speed", "Velocidad de red", "Débit réseau", "Netzwerkgeschwindigkeit" },
             ["na"]       = new[] { "indisponível neste PC", "not available on this PC", "no disponible en este PC", "indisponible sur ce PC", "auf diesem PC nicht verfügbar" },
             ["show"]     = new[] { "Exibir", "Show", "Mostrar", "Afficher", "Anzeigen" },
             ["media"]    = new[] { "Controles de mídia", "Media controls", "Controles multimedia", "Commandes multimédia", "Mediensteuerung" },
