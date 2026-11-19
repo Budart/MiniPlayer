@@ -310,7 +310,8 @@ namespace MiniPlayer
         bool ShowArt => vertical ? compact < 1 : compact < 4;
         bool ShowTitle => !vertical && compact < 3;
         bool ShowProgress => vertical ? compact < 2 : compact < 3;
-        int SysVisibleFor(int level) => SysVisibleMax - Math.Clamp(vertical ? level - 2 : level, 0, 2);
+        // itens do monitor visíveis: 3 (ou todos, se o limite estiver desligado); compactando: 2, depois 1
+        int SysVisibleFor(int level) => Math.Clamp(vertical ? level - 2 : level, 0, 2) switch { 0 => Settings.SysLimit ? SysVisibleMax : 99, 1 => 2, _ => 1 };
         void InvalidateFit() => fitDirty = true;
         bool FitTo(double avail)
         {

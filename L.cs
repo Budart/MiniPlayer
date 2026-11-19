@@ -38,6 +38,7 @@ namespace MiniPlayer
             ["ping"]     = new[] { "Latência (ping)", "Latency (ping)", "Latencia (ping)", "Latence (ping)", "Latenz (Ping)" },
             ["noreply"]  = new[] { "sem resposta", "no reply", "sin respuesta", "pas de réponse", "keine Antwort" },
             ["wired"]    = new[] { "Cabo", "Wired", "Cable", "Filaire", "Kabel (LAN)" },
+            ["syslimit"] = new[] { "Mostrar 3 itens por vez (rolar para ver os demais)", "Show 3 items at a time (scroll for more)", "Mostrar 3 elementos a la vez (desplazar para ver más)", "Afficher 3 éléments à la fois (défiler pour voir la suite)", "3 Elemente gleichzeitig anzeigen (für weitere scrollen)" },
             ["carousel"] = new[] { "Rolar itens automaticamente", "Scroll items automatically", "Desplazar elementos automáticamente", "Défilement automatique des éléments", "Elemente automatisch durchblättern" },
             ["horiz"]    = new[] { "Layout horizontal", "Horizontal layout", "Diseño horizontal", "Disposition horizontale", "Horizontales Layout" },
             ["lang"]     = new[] { "Idioma", "Language", "Idioma", "Langue", "Sprache" },

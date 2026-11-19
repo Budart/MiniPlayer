@@ -87,6 +87,7 @@ namespace MiniPlayer
                 sysHost.Children.Add(tile.View);
                 sysTiles.Add(tile);
             }
+            sysVisible = SysVisibleFor(compact);
             sysOffset = Math.Clamp(sysOffset, 0, sysTiles.Count);
             ShowSysWindow(false);
             UpdateSeparator();

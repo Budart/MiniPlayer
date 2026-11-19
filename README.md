@@ -40,7 +40,7 @@ Real time, with an icon per device type and a ⚡ while charging. Hover a device
 
 ### 📊 System monitor
 Pick the items you want: **RAM, CPU, CPU temperature, GPU, GPU temperature, network speed** (with a Wi-Fi or cable icon) and **ping**.
-- Up to 3 items are shown at once; **scroll the mouse** over them (or click the arrows) to see the rest, or turn on automatic scrolling.
+- Shows 3 items at a time — **scroll the mouse** over them (or click the arrows) to see the rest, or turn on automatic scrolling. Or turn the limit off to show them all at once.
 - **Drag** an item to change the order. **Click** to open Task Manager.
 - Values turn orange when high (usage ≥ 90%, temperature ≥ 85 °C, ping ≥ 150 ms).
 - Works on any hardware, without admin rights or drivers. CPU temperature depends on the motherboard reporting it to Windows.

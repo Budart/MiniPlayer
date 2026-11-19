@@ -40,7 +40,7 @@ Em tempo real, com ícone por tipo e um ⚡ quando está carregando. Passe o mou
 
 ### 📊 Monitor do sistema
 Escolha os itens: **RAM, CPU, temperatura da CPU, GPU, temperatura da GPU, velocidade da rede** (com ícone de Wi-Fi ou cabo) e **ping**.
-- Até 3 itens aparecem por vez; **role o mouse** sobre eles (ou clique nas setas) para ver os outros, ou ligue a rolagem automática.
+- Mostra 3 itens por vez — **role o mouse** sobre eles (ou clique nas setas) para ver os outros, ou ligue a rolagem automática. Ou desligue o limite para ver todos de uma vez.
 - **Arraste** um item para mudar a ordem. **Clique** para abrir o Gerenciador de Tarefas.
 - Os valores ficam laranja quando altos (uso ≥ 90%, temperatura ≥ 85 °C, ping ≥ 150 ms).
 - Funciona em qualquer hardware, sem administrador nem drivers. A temperatura da CPU depende da placa-mãe informá-la ao Windows.

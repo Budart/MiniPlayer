@@ -57,7 +57,8 @@ namespace MiniPlayer
                     new() { Text = L.S("system"), Children = new List<MenuNode>
                     {
                         new() { Text = L.S("sysshow"), Checked = () => Settings.ShowSystem, Enabled = () => !Settings.ShowSystem || Settings.VisibleGroups > 1, Click = () => Settings.SetSystem(!Settings.ShowSystem) },
-                        new() { Text = L.S("carousel"), Checked = () => Settings.SysCarousel, Enabled = () => Settings.ShowSystem, Click = () => Settings.SetCarousel(!Settings.SysCarousel) },
+                        new() { Text = L.S("syslimit"), Checked = () => Settings.SysLimit, Enabled = () => Settings.ShowSystem, Click = () => Settings.SetSysLimit(!Settings.SysLimit) },
+                        new() { Text = L.S("carousel"), Checked = () => Settings.SysCarousel, Enabled = () => Settings.ShowSystem && Settings.SysLimit, Click = () => Settings.SetCarousel(!Settings.SysCarousel) },
                         MenuNode.Sep,
                     }.Concat(SysMetric.All.Select(SysItem)).ToList() },
                 }},
