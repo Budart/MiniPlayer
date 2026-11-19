@@ -271,7 +271,7 @@ namespace MiniPlayer
         }
 
         // ícones de mídia desenhados (mesmo traço dos demais ícones do app)
-        static readonly Geometry PlayGeo = Geometry.Parse("M5,3 L13,8 L5,13 Z"), PauseGeo = Geometry.Parse("M4.5,3.5 H7 V12.5 H4.5 Z M9,3.5 H11.5 V12.5 H9 Z");
+        static readonly Geometry PlayGeo = Geometry.Parse("M5,3 L13,8 L5,13 Z"), PauseGeo = Geometry.Parse("M4.5,3 H6 A1,1 0 0 1 7,4 V12 A1,1 0 0 1 6,13 H4.5 A1,1 0 0 1 3.5,12 V4 A1,1 0 0 1 4.5,3 Z M10,3 H11.5 A1,1 0 0 1 12.5,4 V12 A1,1 0 0 1 11.5,13 H10 A1,1 0 0 1 9,12 V4 A1,1 0 0 1 10,3 Z");
         void SetPlayIcon(bool playing) { var g = playing ? PauseGeo : PlayGeo; if (PlayIcon.Data != g) PlayIcon.Data = g; }
 
         async void Prev_Click(object s, RoutedEventArgs e) { immediateUntil = DateTime.Now.AddSeconds(5); if (session != null) await session.TrySkipPreviousAsync(); }
