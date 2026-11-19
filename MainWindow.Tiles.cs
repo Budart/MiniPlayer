@@ -123,9 +123,10 @@ namespace MiniPlayer
             var a = new TextBlock
             {
                 Text = vertical ? (dir < 0 ? "\uE70E" : "\uE70D") : (dir < 0 ? "\uE76B" : "\uE76C"), // chevrons ▲▼ / ◀▶
-                FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 8, Foreground = fg, Cursor = Cursors.Hand,
+                FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 6, Foreground = fg, Cursor = Cursors.Hand,
                 Background = Brushes.Transparent, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center,
-                TextAlignment = TextAlignment.Center, Width = vertical ? 24 : 10, Margin = vertical ? new Thickness(0, 3, 0, 0) : new Thickness(3, 0, 0, 0)
+                TextAlignment = TextAlignment.Center, Width = vertical ? 24 : 6, Height = vertical ? 7 : double.NaN, // setas pequenas: ocupam o mínimo
+                Margin = vertical ? new Thickness(0, 2, 0, 0) : new Thickness(2, 0, 0, 0), LineHeight = 7, LineStackingStrategy = LineStackingStrategy.BlockLineHeight
             };
             a.MouseLeftButtonDown += (_, e) => { e.Handled = true; ScrollSys(dir); }; // não arrasta a janela solta
             a.MouseWheel += (_, e) => { ScrollSys(e.Delta > 0 ? -1 : 1); e.Handled = true; };
