@@ -13,7 +13,7 @@ namespace MiniPlayer
         public Func<string> Text;        // valor curto embaixo do ícone
         public Func<string> Detail;      // dica ao passar o mouse; null = indisponível neste PC
         public Func<bool> Hot = () => false;
-        public double IconWidth = 22;
+        public double IconScale = 1;     // desenho menor que o padrão (ex.: rede)
 
         public static readonly SysMetric[] All =
         {
@@ -24,9 +24,9 @@ namespace MiniPlayer
             Celsius(GpuTemp, "gputemp", () => SystemMonitor.GpuTemp),
             new()
             {
-                Bit = Net, Key = "net", IconWidth = 27,
-                Icon = () => NetworkStatus.Kind switch { NetworkStatus.Link.Wifi => "net-wifi", NetworkStatus.Link.Wired => "net-wired", _ => "net" },
-                Text = () => SystemMonitor.NetDown < 0 ? "--" : "↓" + Mbps(SystemMonitor.NetDown),
+                Bit = Net, Key = "net", IconScale = 0.8,
+                Icon = () => NetworkStatus.Kind switch { NetworkStatus.Link.Wifi => "net-wifi", NetworkStatus.Link.Wired => "net-wired", _ => "net-globe" },
+                Text = () => SystemMonitor.NetDown < 0 ? "--" : Mbps(SystemMonitor.NetDown), // download (detalhes ↓↑ na dica)
                 Detail = () => SystemMonitor.NetDown < 0 ? null
                     : $"↓ {Mbps(SystemMonitor.NetDown)}/s   ↑ {Mbps(SystemMonitor.NetUp)}/s" + NetworkStatus.Kind switch
                       { NetworkStatus.Link.Wifi => "\nWi-Fi", NetworkStatus.Link.Wired => "\n" + L.S("wired"), _ => "" },

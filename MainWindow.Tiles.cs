@@ -33,11 +33,11 @@ namespace MiniPlayer
             Background = fg, Opacity = 0.3, Width = vertical ? 24 : 1, Height = vertical ? 1 : 24, Margin = TileMargin,
             VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center
         };
-        System.Windows.Shapes.Path TileIcon(string kind, double thickness, double width = 22) => new()
+        System.Windows.Shapes.Path TileIcon(string kind, double thickness, double scale = 1) => new()
         {
             Data = IconGeometry(kind), Stroke = fg, StrokeThickness = thickness,
             StrokeLineJoin = PenLineJoin.Round, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round,
-            Width = width, Height = 16, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Center, SnapsToDevicePixels = true
+            Width = 22 * scale, Height = 16 * scale, Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Center, SnapsToDevicePixels = true
         };
         static TextBlock TileText(string text, Brush color) => new() { Text = text, FontSize = 10, HorizontalAlignment = HorizontalAlignment.Center, Foreground = color };
 
@@ -51,33 +51,36 @@ namespace MiniPlayer
         Border sysSep;
         int sysOffset, sysVisible = SysVisibleMax;
         DispatcherTimer carousel;
-        // esmaecido nas bordas onde há mais itens escondidos (pincel único, só as cores mudam)
-        readonly GradientStop fadeA = new(Colors.Black, 0), fadeA2 = new(Colors.Black, 0.08), fadeB2 = new(Colors.Black, 0.92), fadeB = new(Colors.Black, 1);
-        LinearGradientBrush sysFade;
+        const double SysTileW = 36;
+        TextBlock sysPrev, sysNext; // setas: há itens escondidos daquele lado (clique ou rolagem mostram)
 
         void RebuildSystem()
         {
-            SysPanel.Children.Clear(); sysTiles.Clear(); sysSep = null; sysHost = null;
+            SysPanel.Children.Clear(); sysTiles.Clear(); sysSep = null; sysHost = null; sysPrev = sysNext = null;
             InvalidateFit();
             SysPanel.Visibility = Settings.ShowSystem ? Visibility.Visible : Visibility.Collapsed;
             if (!Settings.ShowSystem) { UpdateCarousel(); return; }
             sysSep = GroupSeparator();
             sysHost = new StackPanel { Orientation = vertical ? Orientation.Vertical : Orientation.Horizontal, Background = Brushes.Transparent, HorizontalAlignment = HorizontalAlignment.Center };
             sysHost.MouseWheel += (_, e) => { ScrollSys(e.Delta > 0 ? -1 : 1); e.Handled = true; }; // aqui a rolagem passa os itens (no resto do player é volume)
+            sysPrev = SysArrow(-1); sysNext = SysArrow(1);
             SysPanel.Children.Add(sysSep);
+            SysPanel.Children.Add(sysPrev);
             SysPanel.Children.Add(sysHost);
+            SysPanel.Children.Add(sysNext);
             foreach (var m in SysMetric.Ordered())
             {
                 if (!Settings.SysOn(m.Bit)) continue;
                 var key = m.Icon();
-                var tile = new SysTile { Metric = m, IconKey = key, Icon = TileIcon(key, 1.15, m.IconWidth), Value = TileText("--", fg) };
+                var tile = new SysTile { Metric = m, IconKey = key, Icon = TileIcon(key, 1.15, m.IconScale), Value = TileText("--", fg) };
                 string name = L.S(m.Key);
                 tile.View = new StackPanel
                 {
                     Orientation = Orientation.Vertical, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center,
-                    Margin = TileMargin, MinWidth = m.Bit == SysMetric.Net ? 44 : 28, // largura fixa: o player não "pula" quando o número muda
+                    Margin = TileMargin, Width = SysTileW, Height = 30, // tamanho fixo e igual: o player não muda de largura ao rolar nem quando o número muda
                     Background = Brushes.Transparent, Cursor = Cursors.Hand, ToolTip = name
                 };
+                tile.Icon.Margin = new Thickness(0, 16 * (1 - m.IconScale) / 2, 0, 16 * (1 - m.IconScale) / 2); // desenho menor, mesma altura
                 tile.View.Children.Add(tile.Icon); tile.View.Children.Add(tile.Value);
                 tile.View.ToolTipOpening += (_, __) => tile.View.ToolTip = $"{name}: {m.Detail() ?? L.S("na")}";
                 HookDrag(tile);
@@ -106,17 +109,26 @@ namespace MiniPlayer
                 if (show && animate) v.BeginAnimation(OpacityProperty, new DoubleAnimation(0.2, 1, TimeSpan.FromMilliseconds(220)) { FillBehavior = FillBehavior.Stop });
             }
             UpdateSystemValues();
-            bool before = sysOffset > 0, after = sysOffset + vis < n;
-            if (!before && !after) { sysHost.OpacityMask = null; }
-            else
-            {
-                sysFade ??= new LinearGradientBrush { GradientStops = { fadeA, fadeA2, fadeB2, fadeB } };
-                sysFade.StartPoint = new Point(0, 0); sysFade.EndPoint = vertical ? new Point(0, 1) : new Point(1, 0);
-                fadeA.Color = before ? Color.FromArgb(0x40, 0, 0, 0) : Colors.Black;
-                fadeB.Color = after ? Color.FromArgb(0x40, 0, 0, 0) : Colors.Black;
-                sysHost.OpacityMask = sysFade;
-            }
+            // setas só existem se houver o que rolar; ocupam sempre o mesmo espaço (apagadas quando não há mais itens daquele lado)
+            var arrows = n > vis ? Visibility.Visible : Visibility.Collapsed;
+            sysPrev.Visibility = sysNext.Visibility = arrows;
+            sysPrev.Opacity = sysOffset > 0 ? 0.75 : 0.15;
+            sysNext.Opacity = sysOffset + vis < n ? 0.75 : 0.15;
             UpdateCarousel();
+        }
+
+        TextBlock SysArrow(int dir)
+        {
+            var a = new TextBlock
+            {
+                Text = vertical ? (dir < 0 ? "\uE70E" : "\uE70D") : (dir < 0 ? "\uE76B" : "\uE76C"), // chevrons ▲▼ / ◀▶
+                FontFamily = new FontFamily("Segoe MDL2 Assets"), FontSize = 8, Foreground = fg, Cursor = Cursors.Hand,
+                Background = Brushes.Transparent, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center,
+                TextAlignment = TextAlignment.Center, Width = vertical ? 24 : 10, Margin = vertical ? new Thickness(0, 3, 0, 0) : new Thickness(3, 0, 0, 0)
+            };
+            a.MouseLeftButtonDown += (_, e) => { e.Handled = true; ScrollSys(dir); }; // não arrasta a janela solta
+            a.MouseWheel += (_, e) => { ScrollSys(e.Delta > 0 ? -1 : 1); e.Handled = true; };
+            return a;
         }
 
         void ScrollSys(int dir)

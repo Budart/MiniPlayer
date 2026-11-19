@@ -38,11 +38,10 @@ namespace MiniPlayer
 
             return new()
             {
+                // marcado = fixo na barra; desmarcado = solto na tela (arrastável)
+                new() { Text = L.S("fixed"), Checked = () => !Settings.Floating, Click = () => Float(!Settings.Floating) },
                 new() { Text = L.S("pos"), Children = new()
                 {
-                    new() { Text = L.S("fixed"), Checked = () => !Settings.Floating, Click = () => Float(false) },
-                    new() { Text = L.S("float"), Checked = () => Settings.Floating,  Click = () => Float(true) },
-                    MenuNode.Sep,
                     new() { Text = L.S("vert"),     Checked = () => Settings.FloatVertical, Enabled = () => Settings.Floating, Click = () => Settings.SetFloatVertical(!Settings.FloatVertical) },
                     new() { Text = L.S("lock"),     Checked = () => Settings.FloatLocked,   Enabled = () => Settings.Floating, Click = () => Settings.SetFloatLocked(!Settings.FloatLocked) },
                     new() { Text = L.S("behind"),   Checked = () => Settings.FloatBehind,   Enabled = () => Settings.Floating, Click = () => Settings.SetBehind(!Settings.FloatBehind) },

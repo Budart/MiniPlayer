@@ -11,7 +11,6 @@ namespace MiniPlayer
         static string Circ(double x, double y, double r) => FormattableString.Invariant($"M{x - r},{y} a{r},{r} 0 1 0 {2 * r},0 a{r},{r} 0 1 0 {-2 * r},0 ");
         // joystick genérico: corpo com pegadores, direcional, 4 botões e 2 analógicos
         static readonly string Pad = Body + "M4.8,11 H7.8 M6.3,9.5 V12.5 " + Circ(17.3, 9.6, 0.55) + Circ(18.9, 11.1, 0.55) + Circ(15.7, 11.1, 0.55) + Circ(17.3, 12.6, 0.55) + Circ(9.4, 14.2, 1.3) + Circ(14.6, 14.2, 1.3);
-        const string Arrows = "M5,4 V18 M2,15 L5,18 L8,15 M12,18 V4 M9,7 L12,4 L15,7 ";
         static readonly System.Collections.Generic.Dictionary<string, string> Paths = new()
         {
             ["pad"] = Pad, ["ds5"] = Pad, ["ds4"] = Pad, ["xbox"] = Pad,
@@ -27,8 +26,10 @@ namespace MiniPlayer
             ["temp"] = "M10.5,4.8 A1.6,1.6 0 0 1 13.7,4.8 V13.9 A3.3,3.3 0 1 1 10.5,13.9 Z M12.1,8 V15.8 M15.8,6 H17.4 M15.8,8.6 H17.4 M15.8,11.2 H17.4",
             ["net"] = "M8,4 V18 M4.5,14.5 L8,18 L11.5,14.5 M16,20 V6 M12.5,9.5 L16,6 L19.5,9.5", // ↓ download / ↑ upload
             // rede + tipo de conexão colado à direita das setas: Wi-Fi (ondas) ou cabo (porta RJ45)
-            ["net-wifi"] = Arrows + "M18.55,14.05 A7,7 0 0 1 28.45,14.05 M20.25,15.75 A4.6,4.6 0 0 1 26.75,15.75 M21.94,17.44 A2.2,2.2 0 0 1 25.06,17.44 " + Circ(23.5, 19.2, 0.45),
-            ["net-wired"] = Arrows + "M18,11 H29 V17.5 H26.5 V20 H20.5 V17.5 H18 Z M20.3,13.2 V15 M22.4,13.2 V15 M24.6,13.2 V15 M26.7,13.2 V15",
+            // tipo de conexão: Wi-Fi (ondas), cabo (porta RJ45) ou desconhecido (globo)
+            ["net-wifi"] = "M3.5,10.5 A12,12 0 0 1 20.5,10.5 M6.6,13.6 A7.6,7.6 0 0 1 17.4,13.6 M9.6,16.6 A3.4,3.4 0 0 1 14.4,16.6 " + Circ(12, 19.3, 0.6),
+            ["net-wired"] = "M4,6 H20 V15.5 H16.5 V18.5 H7.5 V15.5 H4 Z M7.5,9 V11.5 M10.5,9 V11.5 M13.5,9 V11.5 M16.5,9 V11.5",
+            ["net-globe"] = Circ(12, 12, 8) + "M12,4 C8.5,7 8.5,17 12,20 C15.5,17 15.5,7 12,4 Z M4,12 H20",
             ["ping"] = "M4,17 A8,8 0 1 1 20,17 M12,15 L16.5,9.5 " + Circ(12, 15, 1.2), // velocímetro (latência)
             ["bt"] = "M7,7.5 L17,16.5 L12,21 V3 L17,7.5 L7,16.5",
         };
