@@ -44,6 +44,14 @@ namespace MiniPlayer
         [DllImport("kernel32.dll")] public static extern IntPtr GetModuleHandle(string n);
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] public static extern bool DeleteFile(string path);
         [DllImport("kernel32.dll")] public static extern bool SetProcessWorkingSetSize(IntPtr p, IntPtr min, IntPtr max);
+        [StructLayout(LayoutKind.Sequential)] struct PROCESS_MEMORY_COUNTERS { public uint cb, PageFaultCount; public UIntPtr Peak, WorkingSet, QPPeak, QPaged, QNPPeak, QNPaged, Pagefile, PeakPagefile; }
+        [DllImport("psapi.dll")] static extern bool GetProcessMemoryInfo(IntPtr p, out PROCESS_MEMORY_COUNTERS c, uint cb);
+        // memória em uso deste processo (conjunto de trabalho), sem criar objetos
+        public static long WorkingSet()
+        {
+            var c = new PROCESS_MEMORY_COUNTERS { cb = (uint)Marshal.SizeOf<PROCESS_MEMORY_COUNTERS>() };
+            return GetProcessMemoryInfo(new IntPtr(-1), out c, c.cb) ? (long)c.WorkingSet.ToUInt64() : 0;
+        }
 
         // nome da classe de uma janela, com um único buffer reaproveitado (chamado várias vezes por segundo, só na thread da interface)
         [ThreadStatic] static StringBuilder classBuf;

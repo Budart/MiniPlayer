@@ -72,19 +72,40 @@ namespace MiniPlayer
                 var menu = new System.Windows.Forms.ContextMenuStrip();
                 menu.Items.Add(new System.Windows.Forms.ToolStripSeparator()); // placeholder: o conteúdo é montado ao abrir
                 menu.Opening += (_, e) => { AppMenu.FillTray(menu.Items, AppMenu.Build(null)); e.Cancel = false; };
+                menu.Closed += (_, __) => TrimSoon();
                 tray = new System.Windows.Forms.NotifyIcon { Icon = TrayIcon(), Text = "MiniPlayer", ContextMenuStrip = menu, Visible = true };
                 Exit += (_, __) => { tray.Visible = false; tray.Dispose(); };
             }
             catch { }
         }
 
-        // Devolve ao Windows a memória usada só na inicialização (15 s depois) e periodicamente (10 min)
-        static void TrimMemory()
+        // Memória: devolve ao Windows o que não está em uso, mantendo o app abaixo de ~80 MB no Gerenciador de Tarefas.
+        // Confere a cada 15 s (consulta barata) e só age se passou do limite; também logo após picos conhecidos
+        // (inicialização, menu aberto, troca de tema/opções). Páginas devolvidas voltam sozinhas se forem usadas de novo.
+        const long TrimAboveBytes = 80L * 1024 * 1024;
+        static long lastTrim;
+        public static void TrimSoon() => (Current as App)?.trimDue.Start();
+        readonly DispatcherTimer trimDue = new(DispatcherPriority.ApplicationIdle) { Interval = TimeSpan.FromSeconds(3) };
+        void TrimMemory()
         {
-            static void Trim() { try { GC.Collect(2, GCCollectionMode.Optimized, false); SetProcessWorkingSetSize(new IntPtr(-1) /*este processo*/, (IntPtr)(-1), (IntPtr)(-1)); } catch { } }
+            trimDue.Tick += (_, __) => { trimDue.Stop(); Trim(); };
             var t = new DispatcherTimer(DispatcherPriority.ApplicationIdle) { Interval = TimeSpan.FromSeconds(15) };
-            t.Tick += (_, __) => { Trim(); t.Interval = TimeSpan.FromMinutes(10); };
+            t.Tick += (_, __) => { if (WorkingSet() > TrimAboveBytes) Trim(); };
             t.Start();
+            TrimSoon(); // logo após abrir: o que só a inicialização usou
+            Settings.LookChanged += TrimSoon;
+        }
+        static void Trim()
+        {
+            if (Environment.TickCount64 - lastTrim < 2000) return;
+            lastTrim = Environment.TickCount64;
+            try
+            {
+                GC.Collect(2, GCCollectionMode.Forced, true, true); // compacta: o que sobrar livre pode ser devolvido
+                GC.WaitForPendingFinalizers();
+                SetProcessWorkingSetSize(new IntPtr(-1) /*este processo*/, (IntPtr)(-1), (IntPtr)(-1));
+            }
+            catch { }
         }
 
         // Decide quais barras recebem player: fixo = todas as barras; solto = só a principal (listas reaproveitadas: roda 1x/s)

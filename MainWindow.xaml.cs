@@ -73,7 +73,7 @@ namespace MiniPlayer
         {
             var m = AppMenu.ToWpf(AppMenu.Build(this));
             m.Opened += (_, __) => { menuOpen = true; HookMouse(); };
-            m.Closed += (_, __) => { menuOpen = false; UnhookMouse(); };
+            m.Closed += (_, __) => { menuOpen = false; UnhookMouse(); App.TrimSoon(); };
             openMenu = m; menuOpen = true; m.IsOpen = true;
         }
     }

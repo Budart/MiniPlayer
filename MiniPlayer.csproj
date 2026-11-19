@@ -11,7 +11,7 @@
     <Product>MiniPlayer</Product>
     <Description>Mini player de mídia e bateria de dispositivos na barra de tarefas do Windows</Description>
     <Nullable>disable</Nullable>
-    <TieredPGO>true</TieredPGO>
+    <TieredPGO>false</TieredPGO>
     <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
     <ServerGarbageCollection>false</ServerGarbageCollection>
   </PropertyGroup>
