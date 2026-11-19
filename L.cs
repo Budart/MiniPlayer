@@ -37,6 +37,7 @@ namespace MiniPlayer
             ["ping"]     = new[] { "Latência (ping)", "Latency (ping)", "Latencia (ping)", "Latence (ping)", "Latenz (Ping)" },
             ["noreply"]  = new[] { "sem resposta", "no reply", "sin respuesta", "pas de réponse", "keine Antwort" },
             ["wired"]    = new[] { "Cabo", "Wired", "Cable", "Câble", "Kabel" },
+            ["carousel"] = new[] { "Rolar itens automaticamente", "Scroll items automatically", "Desplazar elementos automáticamente", "Défilement automatique des éléments", "Elemente automatisch durchblättern" },
             ["na"]       = new[] { "indisponível neste PC", "not available on this PC", "no disponible en este PC", "indisponible sur ce PC", "auf diesem PC nicht verfügbar" },
             ["show"]     = new[] { "Exibir", "Show", "Mostrar", "Afficher", "Anzeigen" },
             ["media"]    = new[] { "Controles de mídia", "Media controls", "Controles multimedia", "Commandes multimédia", "Mediensteuerung" },

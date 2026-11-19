@@ -40,6 +40,13 @@ namespace MiniPlayer
             },
         };
 
+        // itens na ordem escolhida pelo usuário (os que não estão na ordem salva vão ao fim, na ordem padrão)
+        public static System.Collections.Generic.IEnumerable<SysMetric> Ordered()
+        {
+            foreach (var bit in Settings.SysOrder) foreach (var m in All) if (m.Bit == bit) yield return m;
+            foreach (var m in All) if (Array.IndexOf(Settings.SysOrder, m.Bit) < 0) yield return m;
+        }
+
         static SysMetric Percent(int bit, string key, string icon, Func<int> v) => new()
         {
             Bit = bit, Key = key, Icon = () => icon,

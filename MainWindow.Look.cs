@@ -50,12 +50,22 @@ namespace MiniPlayer
             // tema Claro: espectro na cor da capa escurecida e mais opaco (no fundo claro a cor original fica apagada)
             bool light = Settings.Theme == Themes.Light;
             Spectrum.Opacity = light ? 0.6 : 0.28;
-            foreach (Rectangle r in Spectrum.Children) r.Fill = th.Spectrum != null ? B(th.Spectrum) : light ? accentDeep : accent;
-            var vis = Settings.HidePlayer ? Visibility.Collapsed : Visibility.Visible;
-            Controls.Visibility = Spectrum.Visibility = ArtBox.Visibility = InfoPanel.Visibility = vis;
-            if (vertical) InfoPanel.Visibility = Visibility.Collapsed; // barra lateral: sem textos
+            Brush spec = th.Spectrum != null ? B(th.Spectrum) : light ? accentDeep : accent; // um pincel para todas as barras
+            foreach (Rectangle r in Spectrum.Children) r.Fill = spec;
+            ApplyVisibility();
+            InvalidateFit();
             UpdateBatteries();
             if (dyn) ApplyDynamic(false);
+        }
+
+        // Partes da mídia visíveis: ocultar player, barra lateral (sem textos) e modo compacto (sem título / sem capa)
+        void ApplyVisibility()
+        {
+            bool media = !Settings.HidePlayer;
+            static Visibility V(bool on) => on ? Visibility.Visible : Visibility.Collapsed;
+            Controls.Visibility = Spectrum.Visibility = V(media);
+            ArtBox.Visibility = V(media && compact < 4);
+            InfoPanel.Visibility = V(media && !vertical && compact < 3);
         }
 
         // ---- Tema dinâmico: usa a cor da capa (já calculada para o espectro, numa miniatura de 16x16).

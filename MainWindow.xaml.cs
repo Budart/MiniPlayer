@@ -25,7 +25,6 @@ namespace MiniPlayer
     //  Placement = posição, camada e layout · Look = temas e espectro · Tiles = baterias e monitor · Media = mídia, volume, progresso e título
     public partial class MainWindow : Window
     {
-        
         readonly IntPtr bar; readonly bool isPrimary;
         Mgr mgr; GlobalSystemMediaTransportControlsSession session;
         bool dragging, pending;
@@ -42,25 +41,27 @@ namespace MiniPlayer
                 SetVertical(true, (br.R - br.L) / sc);
                 Left = br.L / sc; Top = br.T / sc + 8;
             }
-            Loaded += async (_, __) => { Setup(); SetupSpectrum(); SetupExtras(); UpdateBatteries(); await InitMedia(); };
+            Loaded += async (_, __) => { Setup(); SetupSpectrum(); SetupExtras(); ApplyLook(); await InitMedia(); };
+            // avisos dos serviços (todos desligados ao fechar: a janela pode ser recriada ao trocar fixo ↔ solto)
             BatteryState.Changed += UpdateBatteries;
             BatteryState.Changed += UpdateSeparator;
             SystemMonitor.Updated += OnSysUpdated;
-            Closed += (_, __) => SystemMonitor.Updated -= OnSysUpdated;
             Settings.LookChanged += ApplyLook;
-            Closed += (_, __) => UnhookMouse(); // nunca deixa o gancho de mouse para trás
-            Closed += (_, __) => Settings.LookChanged -= ApplyLook;
-            Loaded += (_, __) => ApplyLook();
-            Closed += (_, __) => BatteryState.Changed -= UpdateBatteries;
+            Closed += (_, __) =>
+            {
+                BatteryState.Changed -= UpdateBatteries;
+                BatteryState.Changed -= UpdateSeparator;
+                SystemMonitor.Updated -= OnSysUpdated;
+                Settings.LookChanged -= ApplyLook;
+                UnhookMouse(); // nunca deixa o gancho de mouse para trás
+            };
             Root.MouseRightButtonUp += (_, __) => ShowMenu();
             MouseEnter += (_, __) => ClearTaskbarHover();
             MouseMove += (_, __) => ClearTaskbarHover();
             Root.MouseLeftButtonDown += (s, e) =>
             {
                 if (!Settings.Floating || Settings.FloatLocked || e.OriginalSource is Button) return; // travado: não arrasta
-                double x0 = Left, y0 = Top;
                 dragging = true; DragMove(); dragging = false; KeepInsideMonitor(); Settings.FloatX = Left; Settings.FloatY = Top; Settings.Save();
-                if (Math.Abs(Left - x0) + Math.Abs(Top - y0) < 3 && IsSysTile(e.OriginalSource)) OpenTaskManager();
             };
         }
 

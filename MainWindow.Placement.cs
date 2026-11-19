@@ -10,6 +10,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
+using System.Threading;
 using System.Threading.Tasks;
 using Windows.Media.Control;
 using Rectangle = System.Windows.Shapes.Rectangle;
@@ -86,10 +87,14 @@ namespace MiniPlayer
             t.Tick += (_, __) =>
             {
                 // fecha o menu ao clicar fora dele
-                if (!pending && ++n % 3 != 0) return; pending = false; CheckFullscreen(); if (!dragging) Place();
+                if (!pending && ++n % 3 != 0) return;
+                if (pending) RequestScan();
+                pending = false; CheckFullscreen(); if (!dragging) Place();
             };
             t.Start();
-            Closed += (_, __) => { t.Stop(); UnhookWinEvent(h1); };
+            // espaço livre da barra: relido a cada 5 s em segundo plano (e logo após trocas de janela, que podem abrir/fechar ícones)
+            scanTimer = new System.Threading.Timer(_ => Scan(), null, 0, 5000);
+            Closed += (_, __) => { t.Stop(); UnhookWinEvent(h1); scanTimer.Dispose(); };
         }
 
         void Place()
@@ -97,6 +102,7 @@ namespace MiniPlayer
             var me = new WindowInteropHelper(this).Handle;
             if (Settings.Floating)
             {
+                ResetCompact();
                 SetVertical(Settings.FloatVertical, 56);
                 // solto na horizontal: altura pelo conteúdo (título + artista + progresso) com folga, nunca cortando o texto
                 if (!Settings.FloatVertical)
@@ -116,6 +122,7 @@ namespace MiniPlayer
                 if ((r.B - r.T) > (r.R - r.L))
                 {
                     SetVertical(true, (r.R - r.L) / s);
+                    ResetCompact();
                     UpdateLayout();
                     GetWindowRect(me, out w);
                     int vh = w.B - w.T, vy;
@@ -134,13 +141,22 @@ namespace MiniPlayer
                 if (SizeToContent != SizeToContent.Width) SizeToContent = SizeToContent.Width; // fixo: altura = da barra
                 var barPad = new Thickness(4, 0, 4, 0); if (Root.Padding != barPad) Root.Padding = barPad;
                 var hh = (r.B - r.T) / s; if (Math.Abs(Height - hh) > 0.5) Height = hh;
+                // encaixa no vão livre da barra (sem cobrir ícones); se não couber, compacta o player por etapas
+                int pad = (int)(8 * s);
+                var gap = barGap;
+                if (gap == null) ResetCompact();
+                else if (FitTo((gap.R - gap.L - 2 * pad) / s)) { UpdateLayout(); GetWindowRect(me, out w); }
                 int wPx = w.R - w.L, hPx = w.B - w.T, x;
-                if (App.Centered) x = r.L + (int)(8 * s);                       // canto esquerdo da barra
+                if (App.Centered) x = (gap?.L ?? r.L) + pad;                    // à esquerda (depois do clima/Widgets)
                 else
                 {
-                    var tray = isPrimary ? FindWindowEx(bar, IntPtr.Zero, "TrayNotifyWnd", null) : IntPtr.Zero;  // bandeja do sistema
-                    int anchor = tray != IntPtr.Zero && GetWindowRect(tray, out var t) ? t.L : RightItemsLeft(r, s);
-                    x = anchor - wPx - (int)(8 * s);
+                    int anchor = gap?.R ?? 0;
+                    if (gap == null)
+                    {
+                        var tray = isPrimary ? FindWindowEx(bar, IntPtr.Zero, "TrayNotifyWnd", null) : IntPtr.Zero;  // bandeja do sistema
+                        anchor = tray != IntPtr.Zero && GetWindowRect(tray, out var t) ? t.L : r.R - (int)(120 * s);
+                    }
+                    x = anchor - wPx - pad;                                     // à direita (antes da bandeja/relógio)
                 }
                 int y = r.T + (r.B - r.T - hPx) / 2;
                 if (w.L != x || w.T != y) SetWindowPos(me, IntPtr.Zero, x, y, 0, 0, 0x0001 | 0x0004 | 0x0010);
@@ -240,7 +256,6 @@ namespace MiniPlayer
                 Controls.HorizontalAlignment = ArtBox.HorizontalAlignment = BatteryPanel.HorizontalAlignment = HorizontalAlignment.Center;
                 Controls.Margin = new Thickness(0, 6, 0, 0);
                 ArtBox.Margin = new Thickness(0, 6, 0, 0);
-                InfoPanel.Visibility = Visibility.Collapsed; // sem textos na vertical
                 MoveProgress(true);
                 BatteryPanel.Orientation = Orientation.Vertical; BatteryPanel.Margin = new Thickness(0, 4, 0, 8);
                 // espectro com menos barras (uma sim, uma não)
@@ -258,39 +273,54 @@ namespace MiniPlayer
                 foreach (var btn in new[] { PrevBtn, PlayBtn, NextBtn, SwapBtn }) btn.ClearValue(HeightProperty);
                 Controls.ClearValue(HorizontalAlignmentProperty); ArtBox.ClearValue(HorizontalAlignmentProperty); BatteryPanel.ClearValue(HorizontalAlignmentProperty);
                 Controls.Margin = new Thickness(0); ArtBox.Margin = new Thickness(6, 0, 0, 0);
-                InfoPanel.Visibility = Settings.HidePlayer ? Visibility.Collapsed : Visibility.Visible;
                 MoveProgress(false);
                 BatteryPanel.Orientation = Orientation.Horizontal; BatteryPanel.Margin = new Thickness(0, 0, 4, 0);
                 foreach (UIElement r in Spectrum.Children) r.Visibility = Visibility.Visible;
             }
+            ApplyVisibility();
             UpdateBatteries();
             RebuildSystem();
             if (dynBgGrad != null) dynBgGrad.EndPoint = vertical ? new Point(0, 1) : new Point(1, 0);
             if (IsLoaded) ApplyLook();
         }
 
-        // Monitor sem bandeja: acha (via acessibilidade) o item mais à esquerda do grupo da direita (relógio etc.)
-        int cachedAnchor; DateTime anchorTime;
-        int RightItemsLeft(RECT r, double s)
+        // ---- Espaço livre na barra (lido em segundo plano) e modo compacto ----
+        System.Threading.Timer scanTimer;
+        volatile TaskbarSpace.Gap barGap;
+        int scanning; DateTime lastScan;
+        void Scan()
         {
-            if ((DateTime.Now - anchorTime).TotalSeconds < 5 && cachedAnchor > 0) return cachedAnchor;
-            anchorTime = DateTime.Now;
-            int best = r.R - (int)(120 * s), mid = (r.L + r.R) / 2;
-            try
+            if (Settings.Floating || Interlocked.Exchange(ref scanning, 1) == 1) return;
+            try { lastScan = DateTime.Now; barGap = TaskbarSpace.Find(bar, App.Centered, isPrimary); }
+            finally { scanning = 0; }
+        }
+        void RequestScan() { if ((DateTime.Now - lastScan).TotalSeconds >= 1) ThreadPool.QueueUserWorkItem(_ => Scan()); }
+
+        // Etapas: 0 normal · 1–2 menos itens do monitor (3 → 1, o resto rola) · 3 sem título · 4 sem capa
+        int compact; double fitWidth = -1; bool fitDirty = true;
+        void InvalidateFit() => fitDirty = true;
+        bool FitTo(double avail)
+        {
+            if (!fitDirty && Math.Abs(avail - fitWidth) < 1) return false;
+            fitDirty = false; fitWidth = avail;
+            var inf = new Size(double.PositiveInfinity, double.PositiveInfinity);
+            for (int level = 0; level <= 4; level++)
             {
-                var all = System.Windows.Automation.AutomationElement.FromHandle(bar)
-                    .FindAll(System.Windows.Automation.TreeScope.Descendants, System.Windows.Automation.Condition.TrueCondition);
-                int found = int.MaxValue;
-                foreach (System.Windows.Automation.AutomationElement el in all)
-                {
-                    var b = el.Current.BoundingRectangle;
-                    if (b.IsEmpty || b.Width < 4 || b.Width > (r.R - r.L) / 3 || b.Left < mid) continue;
-                    found = Math.Min(found, (int)b.Left);
-                }
-                if (found != int.MaxValue) best = found;
+                SetCompact(level);
+                Root.Measure(inf);
+                if (Root.DesiredSize.Width <= avail) break;
             }
-            catch { }
-            return cachedAnchor = best;
+            return true;
+        }
+        // fora da barra horizontal (solto, barra lateral, vão desconhecido): tudo visível; ao voltar, recalcula o encaixe
+        void ResetCompact() { if (compact == 0) return; SetCompact(0); fitDirty = true; }
+        void SetCompact(int level)
+        {
+            if (level == compact) return;
+            compact = level;
+            sysVisible = SysVisibleMax - Math.Min(level, 2);
+            ShowSysWindow(false);
+            ApplyVisibility();
         }
 
         // esconde atrás de jogos/vídeos em tela cheia
