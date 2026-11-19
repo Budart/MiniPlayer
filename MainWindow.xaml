@@ -42,9 +42,9 @@
         </Grid>
       </Border>
       <!-- campo de texto com largura fixa; o título rola (em loop) ao passar o mouse quando não cabe -->
-      <StackPanel x:Name="InfoPanel" Grid.Column="2" Margin="8,0" Width="150" VerticalAlignment="Center" Background="#01000000">
+      <StackPanel x:Name="InfoPanel" Grid.Column="2" Margin="8,0" Width="100" VerticalAlignment="Center" Background="#01000000">
         <Canvas x:Name="TitleHost" Height="16" ClipToBounds="True">
-          <TextBlock x:Name="TitleText" Width="150" Foreground="White" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+          <TextBlock x:Name="TitleText" Width="100" Foreground="White" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
         </Canvas>
         <TextBlock x:Name="ArtistText" TextAlignment="Left" Foreground="#BBFFFFFF" FontSize="11" TextTrimming="CharacterEllipsis"/>
         <!-- barra de progresso (clique para avançar/voltar) -->

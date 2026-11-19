@@ -97,7 +97,7 @@ namespace MiniPlayer
         }
 
         // Título: largura fixa com "…"; ao passar o mouse, se não couber, rola em loop infinito para a esquerda
-        const double InfoW = 150;
+        const double InfoW = 100;
         string curTitle = "";
         readonly TranslateTransform titleShift = new();
         void SetTitle(string t) { if (t == curTitle && TitleText.Text.Length > 0) return; curTitle = t ?? ""; ResetTitle(); if (InfoPanel.IsMouseOver) StartMarquee(); }
