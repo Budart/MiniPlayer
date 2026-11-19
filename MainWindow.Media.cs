@@ -262,6 +262,14 @@ namespace MiniPlayer
             catch { }
         }
 
+        // textos que dependem do idioma (o resto é montado na hora, já no idioma escolhido)
+        void ApplyTexts()
+        {
+            if (session == null) SetTitle(L.S("nothing"));
+            if (SwapBtn.Visibility == Visibility.Visible) SwapBtn.ToolTip = $"{L.S("source")} ({SourceName(session)})";
+            if (!Settings.VolumeHintDone) Root.ToolTip = L.S("volume");
+        }
+
         // ícones de mídia desenhados (mesmo traço dos demais ícones do app)
         static readonly Geometry PlayGeo = Geometry.Parse("M5,3 L13,8 L5,13 Z"), PauseGeo = Geometry.Parse("M4.5,3.5 H7 V12.5 H4.5 Z M9,3.5 H11.5 V12.5 H9 Z");
         void SetPlayIcon(bool playing) { var g = playing ? PauseGeo : PlayGeo; if (PlayIcon.Data != g) PlayIcon.Data = g; }

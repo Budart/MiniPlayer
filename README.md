@@ -1,97 +1,102 @@
 <p align="center"><img src="docs/icon.png" width="96" alt="MiniPlayer"></p>
 <h1 align="center">MiniPlayer</h1>
-<p align="center">Mini player de mídia para a barra de tarefas do Windows 10/11 — com espectro de áudio, volume na rolagem do mouse e a bateria dos seus fones, controles, mouses e teclados.</p>
-<p align="center"><a href="../../releases/latest"><b>⬇ Baixar a versão mais recente</b></a></p>
+<p align="center"><b>English</b> · <a href="README.pt-BR.md">Português</a></p>
+<p align="center">A tiny media player for the Windows 10/11 taskbar — with an audio spectrum, scroll-wheel volume, the battery of your headphones, controllers, mice and keyboards, and a compact system monitor.</p>
+<p align="center"><a href="../../releases/latest"><b>⬇ Download the latest version</b></a></p>
 
-<p align="center"><img src="docs/horizontal.svg" alt="MiniPlayer na barra de tarefas"></p>
+<p align="center"><img src="docs/horizontal.svg" alt="MiniPlayer on the taskbar"></p>
 
-> As imagens desta página são ilustrações do layout do app.
+> The images on this page are illustrations of the app's layout.
 
 ## Download
-Em [Releases](../../releases/latest) há duas opções:
+[Releases](../../releases/latest) has two options:
 
-| Arquivo | Para quem |
+| File | For |
 |---|---|
-| **MiniPlayer-Setup.exe** *(recomendado)* | Instala só para o seu usuário (sem pedir administrador), cria atalho no menu Iniciar e já deixa "Iniciar com o Windows" ativado. Atualizar = baixar e instalar a versão nova por cima. |
-| **MiniPlayer.exe** *(portátil)* | Não instala nada: é só abrir, de qualquer pasta. |
+| **MiniPlayer-Setup.exe** *(recommended)* | Installs for your user only (no admin rights), adds a Start menu shortcut and turns on "Start with Windows". To update, just install the new version over it. |
+| **MiniPlayer.exe** *(portable)* | Nothing to install: just run it from any folder. |
 
-> Na primeira execução o Windows SmartScreen pode avisar sobre "editor desconhecido": clique em **Mais informações → Executar assim mesmo**.
+> On first run, Windows SmartScreen may warn about an "unknown publisher": click **More info → Run anyway**.
 
-## O que ele faz
+## Features
 
-### 🎵 Mídia
-- **Controla qualquer player**: voltar, play/pause e avançar, com capa, título e artista do que estiver tocando (Spotify, Tidal, YouTube e outros sites no navegador, players de vídeo…).
-- **Barra de progresso** abaixo do título — clique nela para avançar ou voltar.
-- **Título longo rola** ao passar o mouse sobre ele.
-- **Volume na rolagem do mouse**: role sobre o player para mudar o volume do app que está tocando. Passe o mouse na capa para ver o volume atual.
-- **Várias mídias abertas?** O player mostra a que está tocando com som. O botão **⇄** (aparece só quando há mais de uma) alterna manualmente.
-- **Prévias do YouTube** ao passar o mouse nas miniaturas são ignoradas.
-- **Streamings sem capa** (Netflix, Prime Video, Disney+…) ganham uma imagem padrão; sem nenhuma informação, aparece uma nota musical.
-- **Espectro de áudio** discreto atrás dos botões, na cor da capa.
+### 🎵 Media
+- **Controls any player**: previous, play/pause and next, with the cover, title and artist of what's playing (Spotify, Tidal, YouTube and other sites in the browser, video players…).
+- **Progress bar** under the title — click it to seek.
+- **Long titles scroll** when you hover over them.
+- **Scroll-wheel volume**: scroll over the player to change the volume of the app that's playing. Hover the cover to see the current volume.
+- **Several media open?** The player shows the one actually playing sound. The **⇄** button (only shown when there's more than one) switches manually.
+- **YouTube hover previews** are ignored.
+- **Streaming services without a cover** (Netflix, Prime Video, Disney+…) get a default image; with no info at all, a music note is shown.
+- **Subtle audio spectrum** behind the buttons, in the cover's color.
 
-### 🔋 Bateria dos dispositivos
-Em tempo real, com ícone por tipo e um ⚡ quando está carregando. Passe o mouse sobre um dispositivo para ver o nome e o **tempo restante estimado**.
-- Tudo que o Windows informa via Bluetooth: fones, caixas de som, controles Xbox, teclados, mouses…
-- DualSense e DualShock 4 (Bluetooth ou cabo), lidos direto do controle.
-- Logitech (Lightspeed, Unifying e Bolt), Razer sem fio, Nintendo Pro Controller e Joy-Con.
-- Mouses e teclados 2.4 GHz que seguem o padrão HID de bateria.
-- Aparelhos que não informam bateria aparecem com **--**.
+### 🔋 Device battery
+Real time, with an icon per device type and a ⚡ while charging. Hover a device to see its name and the **estimated time left**.
+- Everything Windows reports over Bluetooth: headphones, speakers, Xbox controllers, keyboards, mice…
+- DualSense and DualShock 4 (Bluetooth or cable), read directly from the controller.
+- Logitech (Lightspeed, Unifying and Bolt), Razer wireless, Nintendo Pro Controller and Joy-Con.
+- 2.4 GHz mice and keyboards that follow the HID battery standard.
+- Devices that don't report a battery show **--**.
 
-### 🖥️ Na tela
-- **Encaixe automático** na barra de tarefas, em todos os monitores — inclusive com a **barra na lateral**:
+### 📊 System monitor
+Pick the items you want: **RAM, CPU, CPU temperature, GPU, GPU temperature, network speed** (with a Wi-Fi or cable icon) and **ping**.
+- Up to 3 items are shown at once; **scroll the mouse** over them (or click the arrows) to see the rest, or turn on automatic scrolling.
+- **Drag** an item to change the order. **Click** to open Task Manager.
+- Values turn orange when high (usage ≥ 90%, temperature ≥ 85 °C, ping ≥ 150 ms).
+- Works on any hardware, without admin rights or drivers. CPU temperature depends on the motherboard reporting it to Windows.
 
-<p align="center"><img src="docs/vertical.svg" alt="MiniPlayer em barra de tarefas vertical"></p>
+### 🖥️ On screen
+- **Fits the free space** on the taskbar, on every monitor — without covering taskbar icons. If space is short, it shrinks step by step (fewer monitor items, then no title, then no cover). Also works with the taskbar **on the side**:
 
-- **Solto na tela**: arraste para onde quiser, na horizontal ou na vertical, acima ou atrás das janelas — e trave a posição se quiser.
-- **Some sozinho** em jogos e vídeos em tela cheia.
-- **Nítido** em qualquer escala do Windows (125%, 150%, 200%…).
-- **Leve**: só faz trabalho quando algo muda.
+<p align="center"><img src="docs/vertical.svg" alt="MiniPlayer on a vertical taskbar"></p>
 
-### 🎨 Temas
-11 temas com degradê, incluindo o **Dinâmico**, que acompanha as cores da capa que está tocando:
+- **Floating**: drag it anywhere, horizontal or vertical, above or behind windows — and lock its position if you want.
+- **Hides itself** during full-screen games and videos.
+- **Sharp** at any Windows scale (125%, 150%, 200%…).
+- **Lightweight**: only works when something changes.
 
-<p align="center"><img src="docs/temas.svg" alt="Temas do MiniPlayer"></p>
+### 🎨 Themes
+11 themes with gradients, including **Dynamic**, which follows the colors of the current cover:
+
+<p align="center"><img src="docs/temas.svg" alt="MiniPlayer themes"></p>
 
 ## Menu
-Clique com o botão direito no player — ou no ícone do MiniPlayer na bandeja do sistema, perto do relógio (se não aparecer, procure na seta **^**). Os dois menus têm as mesmas opções.
+Right-click the player — or the MiniPlayer icon in the system tray, near the clock (if it isn't there, look under the **^** arrow). Both menus have the same options.
 
-| Menu | Opção | O que faz |
-|---|---|---|
-| **Posição** | Fixo na barra de tarefas | Encaixa o player na barra (padrão). |
-| | Solto na tela (arrastar) | Desprende o player: arraste-o para onde quiser. A posição é lembrada e ele sempre fica inteiro dentro de um monitor. |
-| | Layout vertical (solto) | ✓ = player solto em coluna. |
-| | Travar posição (solto) | ✓ = não pode ser arrastado e sempre abre no mesmo lugar (útil com outros apps de barra de tarefas). |
-| | Atrás das janelas (solto) | ✓ = fica atrás das janelas, como um widget da área de trabalho. Sobre a barra de tarefas e no **Win+D** continua visível. |
-| **Exibir** | Controles de mídia | ✓ = mostra botões, capa, título e espectro. |
-| | Bateria dos dispositivos | ✓ = mostra os indicadores de bateria. Um dos dois sempre fica visível. |
-| **Tema** | 11 opções | Padrão, Escuro, Claro, Neon, Pôr do sol, Oceano, Floresta, Púrpura, Rubi, Alto contraste e Dinâmico. |
-| **Tamanho** | Pequeno / Médio / Grande | Tamanho do player. |
-| | Iniciar com o Windows | ✓ = abre o MiniPlayer ao ligar o PC. |
-| | Encerrar MiniPlayer | Fecha o app. |
+| Option | What it does |
+|---|---|
+| **Docked to the taskbar** | ✓ = fixed on the taskbar (default). Unchecked = floating: drag it anywhere; it always stays fully inside one monitor. |
+| **Lock position** | ✓ = the floating player can't be dragged (useful with other taskbar apps). Floating only. |
+| **Position (Floating)** | Vertical or horizontal layout, and **Behind windows** (works like a desktop widget; still visible over the taskbar and with **Win+D**). Floating only. |
+| **Show** | Media controls, device battery and system monitor (with its items and automatic scrolling). One group always stays visible. |
+| **Theme** | Default, Dark, Light, Neon, Sunset, Ocean, Forest, Purple, Ruby, High contrast and Dynamic. |
+| **Language** | Automatic (follows Windows) or Português, English, Español, Français, Deutsch. |
+| **Size** | Small / Medium / Large. |
+| **Start with Windows** | ✓ = opens MiniPlayer when the PC starts. |
+| **Exit MiniPlayer** | Closes the app. |
 
-**✓ significa ativado**; em Posição, Tema e Tamanho, o ✓ indica a opção atual. O menu segue o idioma do Windows (português, inglês, espanhol, francês ou alemão; outros idiomas usam inglês).
+## Where it sits on the taskbar
+It follows the Windows taskbar alignment (*Settings → Personalization → Taskbar → Taskbar behaviors → Alignment*):
+- **Center**: one player per monitor, on the left side of the taskbar (after the Widgets button).
+- **Left**: next to the tray/clock, on every monitor.
+- **Side taskbar** (left/right, via ExplorerPatcher, StartAllBack etc.): compact column at the top or above the tray.
 
-## Onde ele fica na barra
-O encaixe segue o alinhamento da barra do Windows (*Configurações → Personalização → Barra de tarefas → Comportamentos → Alinhamento*):
-- **Centralizado**: um player em cada monitor, no canto esquerdo da barra.
-- **À esquerda**: colado à esquerda da bandeja/relógio, em cada monitor.
-- **Barra na lateral** (esquerda/direita, via ExplorerPatcher, StartAllBack etc.): coluna compacta no topo da barra ou acima da bandeja.
+Changed the alignment or taskbar position? The player adjusts by itself.
 
-Mudou o alinhamento ou a posição da barra? O player se ajusta sozinho.
+## FAQ
+- **The player shows the video I hovered on YouTube.** The app already ignores silent previews. To get rid of it completely: on YouTube, profile picture → **Settings → Playback and performance** → turn off **Inline playback**.
+- **My device's battery shows "--".** The device itself doesn't report its battery to Windows. Mice/keyboards with proprietary dongles may not report it either.
+- **The controller % changes in steps of 10.** Some devices only report battery in ranges (the DualSense reports 11 levels); the app shows the precision the device provides.
+- **Scrolling changes the master volume, not the app's.** This happens when the app doesn't appear in the Windows volume mixer with a recognizable name (e.g. Firefox).
+- **"Start with Windows" didn't work.** It uses the Windows startup list (Task Manager › Startup apps) — check it isn't disabled there. If you moved the portable exe, run it once so the path gets updated.
 
-## Dúvidas comuns
-- **O player mostra o vídeo em que passei o mouse no YouTube.** O app já ignora prévias sem som. Para eliminar de vez: no YouTube, foto de perfil → **Configurações → Reprodução e desempenho** → desmarque **Reprodução inline**.
-- **A bateria do meu aparelho aparece com "--".** O próprio aparelho não informa a bateria ao Windows. Mouses/teclados com dongle de protocolo próprio também podem não informar.
-- **A % do controle muda de 10 em 10.** Alguns aparelhos só informam a bateria em faixas (o DualSense informa 11 níveis); o app mostra a precisão que o aparelho entrega.
-- **O volume da rolagem muda o volume geral, não o do app.** Acontece quando o app não aparece no mixer de volume do Windows com um nome reconhecível (ex.: Firefox).
-- **"Iniciar com o Windows" não funcionou.** Ele usa a lista de inicialização do Windows (Gerenciador de Tarefas › Aplicativos de inicialização) — confira se não está desativado lá. Se moveu o exe portátil de pasta, abra-o uma vez para o caminho ser atualizado.
+## Privacy
+MiniPlayer **doesn't collect any data** and has no account, telemetry or ads. Title, cover, audio (for the spectrum), battery and system information are read and used only in your PC's memory, on the spot. The only thing saved is your preferences, in `%AppData%\MiniPlayer.txt`.
+The only network traffic is the optional **Ping** item: while it's on, it sends one tiny packet (16 bytes) every 2 seconds to 1.1.1.1 (Cloudflare) or 8.8.8.8 (Google) to measure latency. Network speed only reads Windows' own counters and sends nothing.
 
-## Privacidade
-O MiniPlayer **não envia nada para a internet** e não coleta dados. Título, capa, áudio (para o espectro) e informações de bateria são lidos e usados só na memória do seu PC, na hora. As únicas coisas salvas são suas preferências, em `%AppData%\MiniPlayer.txt`.
-
-## Compilar o código
-Requer o .NET 8 SDK. Rode `Compilar.bat` ou:
+## Building
+Requires the .NET 8 SDK. Run `Compilar.bat` or:
 ```
 dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
 ```
-O instalador é gerado com [Inno Setup](https://jrsoftware.org/isinfo.php) a partir de `installer.iss`.
+The installer is built with [Inno Setup](https://jrsoftware.org/isinfo.php) from `installer.iss`.

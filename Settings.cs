@@ -11,7 +11,7 @@ namespace MiniPlayer
 
         public static bool Floating, ShowBattery = true, FloatBehind, HidePlayer, FloatVertical, FloatLocked, VolumeHintDone, ShowSystem, SysCarousel;
         public static double FloatX = 200, FloatY = 200;
-        public static int Theme, PlayerSize = 1;                           // tamanho: 0 pequeno, 1 médio, 2 grande
+        public static int Theme, PlayerSize = 1, Language = -1;           // idioma: -1 = automático (do Windows), senão índice em L.Names                           // tamanho: 0 pequeno, 1 médio, 2 grande
         public static readonly double[] SizeScales = { 0.85, 1.0, 1.2 };
         public static int SysItems = SysMetric.Ram | SysMetric.Cpu | SysMetric.Gpu; // itens do monitor (bits, ver SysMetric)
         public static int[] SysOrder = Array.Empty<int>();                 // ordem escolhida arrastando (bits); vazio = padrão
@@ -35,6 +35,7 @@ namespace MiniPlayer
             if (next == 0) return; // pelo menos um item do monitor
             SysItems = next; Changed();
         }
+        public static void SetLanguage(int i) { Language = i; Changed(); }
         public static void SetCarousel(bool on) { SysCarousel = on; Changed(); }
         // nova ordem do monitor (arrastando os itens): grava sem redesenhar
         public static void SetSysOrder(int[] bits) { SysOrder = bits; Save(); }
@@ -66,6 +67,7 @@ namespace MiniPlayer
                 if (I(12, 0) is var si && si > 0 && si <= SysMetric.AllBits) SysItems = si;
                 if (p.Length > 13 && p[13].Length > 0) SysOrder = Array.ConvertAll(p[13].Split(','), int.Parse);
                 SysCarousel = B(14, false);
+                Language = Math.Clamp(I(15, -1), -1, L.Names.Length - 1);
             }
             catch { }
         }
@@ -76,7 +78,7 @@ namespace MiniPlayer
             try
             {
                 File.WriteAllText(File_, string.Create(CultureInfo.InvariantCulture,
-                    $"{N(Floating)};{FloatX};{FloatY};{N(ShowBattery)};{N(FloatBehind)};{N(HidePlayer)};{Theme};{N(FloatVertical)};{N(FloatLocked)};{PlayerSize};{N(VolumeHintDone)};{N(ShowSystem)};{SysItems};{string.Join(",", SysOrder)};{N(SysCarousel)}"));
+                    $"{N(Floating)};{FloatX};{FloatY};{N(ShowBattery)};{N(FloatBehind)};{N(HidePlayer)};{Theme};{N(FloatVertical)};{N(FloatLocked)};{PlayerSize};{N(VolumeHintDone)};{N(ShowSystem)};{SysItems};{string.Join(",", SysOrder)};{N(SysCarousel)};{Language}"));
             }
             catch { }
         }

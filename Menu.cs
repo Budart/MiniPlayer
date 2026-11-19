@@ -62,6 +62,7 @@ namespace MiniPlayer
                     }.Concat(SysMetric.All.Select(SysItem)).ToList() },
                 }},
                 new() { Text = L.S("theme"), Children = temas },
+                new() { Text = L.S("lang"), Children = Languages() },
                 new() { Text = L.S("size"), Children = new()
                 {
                     new() { Text = L.S("small"),  Checked = () => Settings.PlayerSize == 0, Click = () => Settings.SetSize(0) },
@@ -82,6 +83,17 @@ namespace MiniPlayer
             Enabled = () => Settings.ShowSystem && (!Settings.SysOn(m.Bit) || (Settings.SysItems & ~m.Bit) != 0),
             Click = () => Settings.SetSysItem(m.Bit, !Settings.SysOn(m.Bit))
         };
+
+        static List<MenuNode> Languages()
+        {
+            var l = new List<MenuNode> { new() { Text = L.S("auto"), Checked = () => Settings.Language < 0, Click = () => Settings.SetLanguage(-1) }, MenuNode.Sep };
+            for (int i = 0; i < L.Names.Length; i++)
+            {
+                int idx = i;
+                l.Add(new() { Text = L.Names[i], Checked = () => Settings.Language == idx, Click = () => Settings.SetLanguage(idx) });
+            }
+            return l;
+        }
 
         static MainWindow Application_FirstPlayer() => System.Windows.Application.Current.Windows.OfType<MainWindow>().FirstOrDefault();
 

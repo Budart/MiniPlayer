@@ -54,6 +54,7 @@ namespace MiniPlayer
             foreach (Rectangle r in Spectrum.Children) r.Fill = spec;
             ApplyVisibility();
             InvalidateFit();
+            ApplyTexts();
             UpdateBatteries();
             if (dyn) ApplyDynamic(false);
         }

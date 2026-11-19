@@ -3,11 +3,13 @@ using System.Globalization;
 
 namespace MiniPlayer
 {
-    // Textos da interface no idioma do Windows. Idiomas: pt, en, es, fr, de. Qualquer outro usa inglês.
+    // Textos da interface. Idiomas: pt, en, es, fr, de. Automático = idioma do Windows (qualquer outro usa inglês); ou escolhido no menu.
     static class L
     {
-        static readonly string[] Langs = { "pt", "en", "es", "fr", "de" };
-        static readonly int Lang = System.Array.IndexOf(Langs, CultureInfo.CurrentUICulture.TwoLetterISOLanguageName) is var i && i >= 0 ? i : 1;
+        public static readonly string[] Names = { "Português", "English", "Español", "Français", "Deutsch" }; // cada um no próprio idioma
+        static readonly string[] Codes = { "pt", "en", "es", "fr", "de" };
+        static readonly int Auto = System.Array.IndexOf(Codes, CultureInfo.CurrentUICulture.TwoLetterISOLanguageName) is var i && i >= 0 ? i : 1;
+        static int Lang => Settings.Language >= 0 && Settings.Language < Codes.Length ? Settings.Language : Auto;
 
         static readonly Dictionary<string, string[]> T = new()
         {
@@ -38,6 +40,8 @@ namespace MiniPlayer
             ["wired"]    = new[] { "Cabo", "Wired", "Cable", "Filaire", "Kabel (LAN)" },
             ["carousel"] = new[] { "Rolar itens automaticamente", "Scroll items automatically", "Desplazar elementos automáticamente", "Défilement automatique des éléments", "Elemente automatisch durchblättern" },
             ["horiz"]    = new[] { "Layout horizontal", "Horizontal layout", "Diseño horizontal", "Disposition horizontale", "Horizontales Layout" },
+            ["lang"]     = new[] { "Idioma", "Language", "Idioma", "Langue", "Sprache" },
+            ["auto"]     = new[] { "Automático (Windows)", "Automatic (Windows)", "Automático (Windows)", "Automatique (Windows)", "Automatisch (Windows)" },
             ["na"]       = new[] { "indisponível neste PC", "not available on this PC", "no disponible en este PC", "indisponible sur ce PC", "auf diesem PC nicht verfügbar" },
             ["show"]     = new[] { "Exibir", "Show", "Mostrar", "Afficher", "Anzeigen" },
             ["media"]    = new[] { "Controles de mídia", "Media controls", "Controles multimedia", "Commandes multimédia", "Mediensteuerung" },
