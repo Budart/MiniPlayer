@@ -92,9 +92,17 @@ namespace MiniPlayer
                 pending = false; CheckFullscreen(); if (!dragging) Place();
             };
             t.Start();
-            // espaço livre da barra: relido a cada 5 s em segundo plano (e logo após trocas de janela, que podem abrir/fechar ícones)
-            scanTimer = new System.Threading.Timer(_ => Scan(), null, 0, 5000);
-            Closed += (_, __) => { t.Stop(); UnhookWinEvent(h1); scanTimer.Dispose(); };
+            // espaço livre da barra: relido em segundo plano quando janelas abrem/fecham/aparecem/somem (é quando ícones entram
+            // ou saem da barra), ~0,6 s depois (a barra anima), e a cada 5 s como garantia. Sem custo de memória: só um aviso do Windows.
+            winProc = (a, ev, hw, o, c, t2, ms) => { if (o == 0 && c == 0) scanDue = Environment.TickCount64 + 600; };
+            var h2 = SetWinEventHook(0x8001, 0x8003, IntPtr.Zero, winProc, 0, 0, 0);  // janela destruída / exibida / ocultada
+            scanTimer = new System.Threading.Timer(_ =>
+            {
+                long due = Interlocked.Read(ref scanDue);
+                if (due != 0 && Environment.TickCount64 >= due) { Interlocked.Exchange(ref scanDue, 0); Scan(); }
+                else if (Environment.TickCount64 - lastScanTick >= 5000) Scan();
+            }, null, 0, 250);
+            Closed += (_, __) => { t.Stop(); UnhookWinEvent(h1); UnhookWinEvent(h2); scanTimer.Dispose(); };
         }
 
         void Place()
@@ -296,14 +304,16 @@ namespace MiniPlayer
         // ---- Espaço livre na barra (lido em segundo plano) e modo compacto ----
         System.Threading.Timer scanTimer;
         volatile TaskbarSpace.Gap barGap;
-        int scanning; DateTime lastScan;
+        WinEventProc winProc;
+        long scanDue, lastScanTick;
+        int scanning;
         void Scan()
         {
             if (Settings.Floating || Interlocked.Exchange(ref scanning, 1) == 1) return;
-            try { lastScan = DateTime.Now; barGap = TaskbarSpace.Find(bar, App.Centered, isPrimary); }
+            try { lastScanTick = Environment.TickCount64; barGap = TaskbarSpace.Find(bar, App.Centered, isPrimary); }
             finally { scanning = 0; }
         }
-        void RequestScan() { if ((DateTime.Now - lastScan).TotalSeconds >= 1) ThreadPool.QueueUserWorkItem(_ => Scan()); }
+        void RequestScan() => Interlocked.CompareExchange(ref scanDue, Environment.TickCount64 + 600, 0); // troca de foco: confere logo em seguida
 
         // Etapas do modo compacto (0 = normal):
         //  barra horizontal: 1–2 menos itens do monitor (3 → 1, o resto rola) · 3 sem título · 4 sem capa

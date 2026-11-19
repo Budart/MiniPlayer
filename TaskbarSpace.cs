@@ -13,6 +13,17 @@ namespace MiniPlayer
         // vão livre ao longo da barra: Start/End = x (barra horizontal) ou y (barra lateral)
         public sealed record Gap(int Start, int End);
 
+        // só itens "clicáveis" contam (botões de apps, Iniciar, pesquisa, Widgets, ícones da bandeja, relógio).
+        // Contêineres (ex.: a faixa de apps da barra do Windows 10/ExplorerPatcher) ocupam o espaço livre mesmo vazios
+        // e não encolhem quando apps fecham — por isso ficam de fora. O filtro roda no próprio Windows: menos itens trafegam.
+        static readonly Condition Items = new OrCondition(
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Button),
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.SplitButton),
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.MenuItem),
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem),
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Edit),
+            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ComboBox));
+
         // centered = ícones centralizados → vão no começo (depois do clima/Widgets); senão → vão no fim (antes da bandeja)
         public static Gap Find(IntPtr bar, bool centered, bool primary)
         {
@@ -31,7 +42,7 @@ namespace MiniPlayer
                 cache.Add(AutomationElement.IsOffscreenProperty);
                 var root = AutomationElement.FromHandle(bar);
                 AutomationElementCollection all;
-                using (cache.Activate()) all = root.FindAll(TreeScope.Descendants, Condition.TrueCondition);
+                using (cache.Activate()) all = root.FindAll(TreeScope.Descendants, Items);
 
                 // itens visíveis da barra como intervalos no eixo da barra
                 int barLen = a1 - a0;
