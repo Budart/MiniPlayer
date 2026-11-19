@@ -24,14 +24,14 @@
 - **Controls any player**: previous, play/pause and next, with the cover, title and artist of what's playing (Spotify, Tidal, YouTube and other sites in the browser, video players…).
 - **Progress bar** under the title — click it to seek.
 - **Long titles scroll** when you hover over them.
-- **Scroll-wheel volume**: scroll over the player to change the volume of the app that's playing. Hover the cover to see the current volume.
-- **Several media open?** The player shows the one actually playing sound. The **⇄** button (only shown when there's more than one) switches manually.
+- **Scroll-wheel volume**: scroll over the cover or the buttons to change the volume of the app that's playing. Hover the cover to see the current volume.
+- **Several media open?** The player shows the one actually playing sound. To switch manually, scroll over the title or click the **⇅** button (only shown when there's more than one) — the media rolls up/down with a short animation.
 - **YouTube hover previews** are ignored.
 - **Streaming services without a cover** (Netflix, Prime Video, Disney+…) get a default image; with no info at all, a music note is shown.
 - **Subtle audio spectrum** behind the buttons, in the cover's color.
 
 ### 🔋 Device battery
-Real time, with an icon per device type and a ⚡ while charging. Hover a device to see its name and the **estimated time left**.
+Real time, with an icon per device type and a ⚡ while charging. Hover a device to see its name and the **estimated time left**; click it to open the Windows Bluetooth settings.
 - Everything Windows reports over Bluetooth: headphones, speakers, Xbox controllers, keyboards, mice…
 - DualSense and DualShock 4 (Bluetooth or cable), read directly from the controller.
 - Logitech (Lightspeed, Unifying and Bolt), Razer wireless, Nintendo Pro Controller and Joy-Con.

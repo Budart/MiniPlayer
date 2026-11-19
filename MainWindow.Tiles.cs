@@ -273,9 +273,10 @@ namespace MiniPlayer
             sysSep.Visibility = before ? Visibility.Visible : Visibility.Collapsed;
         }));
 
-        static void OpenTaskManager()
+        static void OpenTaskManager() => OpenSettings("taskmgr.exe");
+        static void OpenSettings(string target)
         {
-            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("taskmgr.exe") { UseShellExecute = true }); } catch { }
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(target) { UseShellExecute = true }); } catch { }
         }
 
         // ---- Baterias: ícone + % de cada dispositivo (raio ao lado quando carregando) ----
@@ -297,6 +298,10 @@ namespace MiniPlayer
                 };
                 var bb = b;
                 sp.ToolTipOpening += (_, __) => sp.ToolTip = BatteryState.Tip(bb);
+                // clique abre as configurações de Bluetooth do Windows
+                sp.Cursor = Cursors.Hand;
+                sp.MouseLeftButtonDown += (_, e) => e.Handled = true; // não arrasta a janela solta
+                sp.MouseLeftButtonUp += (_, e) => { e.Handled = true; OpenSettings("ms-settings:bluetooth"); };
                 sp.Children.Add(col);
                 if (b.Charging)
                 {

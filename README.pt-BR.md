@@ -24,14 +24,14 @@ Em [Releases](../../releases/latest) há duas opções:
 - **Controla qualquer player**: voltar, play/pause e avançar, com capa, título e artista do que estiver tocando (Spotify, Tidal, YouTube e outros sites no navegador, players de vídeo…).
 - **Barra de progresso** abaixo do título — clique nela para avançar ou voltar.
 - **Título longo rola** ao passar o mouse sobre ele.
-- **Volume na rolagem do mouse**: role sobre o player para mudar o volume do app que está tocando. Passe o mouse na capa para ver o volume atual.
-- **Várias mídias abertas?** O player mostra a que está tocando com som. O botão **⇄** (aparece só quando há mais de uma) alterna manualmente.
+- **Volume na rolagem do mouse**: role sobre a capa ou os botões para mudar o volume do app que está tocando. Passe o mouse na capa para ver o volume atual.
+- **Várias mídias abertas?** O player mostra a que está tocando com som. Para trocar manualmente, role o mouse sobre o título ou clique no botão **⇅** (aparece só quando há mais de uma) — a mídia gira para cima/baixo com uma animação curta.
 - **Prévias do YouTube** ao passar o mouse nas miniaturas são ignoradas.
 - **Streamings sem capa** (Netflix, Prime Video, Disney+…) ganham uma imagem padrão; sem nenhuma informação, aparece uma nota musical.
 - **Espectro de áudio** discreto atrás dos botões, na cor da capa.
 
 ### 🔋 Bateria dos dispositivos
-Em tempo real, com ícone por tipo e um ⚡ quando está carregando. Passe o mouse sobre um dispositivo para ver o nome e o **tempo restante estimado**.
+Em tempo real, com ícone por tipo e um ⚡ quando está carregando. Passe o mouse sobre um dispositivo para ver o nome e o **tempo restante estimado**; clique para abrir as configurações de Bluetooth do Windows.
 - Tudo que o Windows informa via Bluetooth: fones, caixas de som, controles Xbox, teclados, mouses…
 - DualSense e DualShock 4 (Bluetooth ou cabo), lidos direto do controle.
 - Logitech (Lightspeed, Unifying e Bolt), Razer sem fio, Nintendo Pro Controller e Joy-Con.
