@@ -77,7 +77,7 @@ namespace MiniPlayer
                 tile.View = new StackPanel
                 {
                     Orientation = Orientation.Vertical, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center,
-                    Margin = TileMargin, Width = SysTileW, Height = 30, // tamanho fixo e igual: o player não muda de largura ao rolar nem quando o número muda
+                    Margin = TileMargin, Width = SysTileW, // largura fixa e igual: o player não muda de largura ao rolar nem quando o número muda (altura natural = alinhada com as baterias)
                     Background = Brushes.Transparent, Cursor = Cursors.Hand, ToolTip = name
                 };
                 tile.Icon.Margin = new Thickness(0, 16 * (1 - m.IconScale) / 2, 0, 16 * (1 - m.IconScale) / 2); // desenho menor, mesma altura
