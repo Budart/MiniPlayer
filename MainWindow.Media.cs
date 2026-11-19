@@ -240,6 +240,8 @@ namespace MiniPlayer
                 Art.RenderTransform = NoArt.RenderTransform = artSlide;               // dentro do recorte da capa
                 TitleHost.RenderTransform = ArtistText.RenderTransform = infoSlide;   // dentro do campo de texto (recortado)
             }
+            // barra de progresso acompanha o texto (na barra lateral ela fica fora do campo recortado: não anima)
+            Progress.RenderTransform = vertical ? Transform.Identity : infoSlide;
             sliding = true;
             try
             {
