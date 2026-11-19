@@ -26,59 +26,58 @@ namespace MiniPlayer
             void Float(bool on)
             {
                 var w = from ?? Application_FirstPlayer();
-                App.SetFloating(on, w?.Left ?? 200, (w?.Top ?? 260) - 60);
+                Settings.SetFloating(on, w?.Left ?? 200, (w?.Top ?? 260) - 60);
             }
 
             var temas = new List<MenuNode>();
-            for (int i = 0; i < App.Themes.Length; i++)
+            for (int i = 0; i < Themes.All.Length; i++)
             {
                 int idx = i;
-                temas.Add(new() { Text = L.S("t" + i), Checked = () => App.Theme == idx, Click = () => App.SetTheme(idx) });
+                temas.Add(new() { Text = L.S("t" + i), Checked = () => Settings.Theme == idx, Click = () => Settings.SetTheme(idx) });
             }
 
             return new()
             {
                 new() { Text = L.S("pos"), Children = new()
                 {
-                    new() { Text = L.S("fixed"), Checked = () => !App.Floating, Click = () => Float(false) },
-                    new() { Text = L.S("float"), Checked = () => App.Floating,  Click = () => Float(true) },
+                    new() { Text = L.S("fixed"), Checked = () => !Settings.Floating, Click = () => Float(false) },
+                    new() { Text = L.S("float"), Checked = () => Settings.Floating,  Click = () => Float(true) },
                     MenuNode.Sep,
-                    new() { Text = L.S("vert"),     Checked = () => App.FloatVertical, Enabled = () => App.Floating, Click = () => App.SetFloatVertical(!App.FloatVertical) },
-                    new() { Text = L.S("lock"),     Checked = () => App.FloatLocked,   Enabled = () => App.Floating, Click = () => App.SetFloatLocked(!App.FloatLocked) },
-                    new() { Text = L.S("behind"),   Checked = () => App.FloatBehind,   Enabled = () => App.Floating, Click = () => App.SetBehind(!App.FloatBehind) },
+                    new() { Text = L.S("vert"),     Checked = () => Settings.FloatVertical, Enabled = () => Settings.Floating, Click = () => Settings.SetFloatVertical(!Settings.FloatVertical) },
+                    new() { Text = L.S("lock"),     Checked = () => Settings.FloatLocked,   Enabled = () => Settings.Floating, Click = () => Settings.SetFloatLocked(!Settings.FloatLocked) },
+                    new() { Text = L.S("behind"),   Checked = () => Settings.FloatBehind,   Enabled = () => Settings.Floating, Click = () => Settings.SetBehind(!Settings.FloatBehind) },
                 }},
                 new() { Text = L.S("show"), Children = new()
                 {
                     // um dos dois sempre fica visível: o que estiver sozinho não pode ser desmarcado
-                    new() { Text = L.S("media"), Checked = () => !App.HidePlayer, Enabled = () => App.HidePlayer || App.VisibleGroups > 1, Click = () => App.SetHidePlayer(!App.HidePlayer) },
-                    new() { Text = L.S("battery"), Checked = () => App.ShowBattery, Enabled = () => !App.ShowBattery || App.VisibleGroups > 1, Click = () => App.SetBattery(!App.ShowBattery) },
-                    new() { Text = L.S("system"), Children = new()
+                    new() { Text = L.S("media"), Checked = () => !Settings.HidePlayer, Enabled = () => Settings.HidePlayer || Settings.VisibleGroups > 1, Click = () => Settings.SetHidePlayer(!Settings.HidePlayer) },
+                    new() { Text = L.S("battery"), Checked = () => Settings.ShowBattery, Enabled = () => !Settings.ShowBattery || Settings.VisibleGroups > 1, Click = () => Settings.SetBattery(!Settings.ShowBattery) },
+                    new() { Text = L.S("system"), Children = new List<MenuNode>
                     {
-                        new() { Text = L.S("sysshow"), Checked = () => App.ShowSystem, Enabled = () => !App.ShowSystem || App.VisibleGroups > 1, Click = () => App.SetSystem(!App.ShowSystem) },
+                        new() { Text = L.S("sysshow"), Checked = () => Settings.ShowSystem, Enabled = () => !Settings.ShowSystem || Settings.VisibleGroups > 1, Click = () => Settings.SetSystem(!Settings.ShowSystem) },
                         MenuNode.Sep,
-                        SysItem("ram", 1), SysItem("cpu", 2), SysItem("cputemp", 4), SysItem("gpu", 8), SysItem("gputemp", 16), SysItem("net", 32),
-                    }},
+                    }.Concat(SysMetric.All.Select(SysItem)).ToList() },
                 }},
                 new() { Text = L.S("theme"), Children = temas },
                 new() { Text = L.S("size"), Children = new()
                 {
-                    new() { Text = L.S("small"),  Checked = () => App.PlayerSize == 0, Click = () => App.SetSize(0) },
-                    new() { Text = L.S("medium"), Checked = () => App.PlayerSize == 1, Click = () => App.SetSize(1) },
-                    new() { Text = L.S("large"),  Checked = () => App.PlayerSize == 2, Click = () => App.SetSize(2) },
+                    new() { Text = L.S("small"),  Checked = () => Settings.PlayerSize == 0, Click = () => Settings.SetSize(0) },
+                    new() { Text = L.S("medium"), Checked = () => Settings.PlayerSize == 1, Click = () => Settings.SetSize(1) },
+                    new() { Text = L.S("large"),  Checked = () => Settings.PlayerSize == 2, Click = () => Settings.SetSize(2) },
                 }},
                 MenuNode.Sep,
-                new() { Text = L.S("startup"), Checked = () => App.StartsWithWindows, Click = () => App.SetStartup(!App.StartsWithWindows) },
+                new() { Text = L.S("startup"), Checked = () => StartupEntry.Enabled, Click = () => StartupEntry.Set(!StartupEntry.Enabled) },
                 MenuNode.Sep,
                 new() { Text = L.S("quit"), Click = App.Quit },
             };
         }
 
         // item do monitor: só pode desmarcar se sobrar outro marcado
-        static MenuNode SysItem(string key, int bit) => new()
+        static MenuNode SysItem(SysMetric m) => new()
         {
-            Text = L.S(key), Checked = () => App.SysOn(bit),
-            Enabled = () => App.ShowSystem && (!App.SysOn(bit) || (App.SysItems & ~bit) != 0),
-            Click = () => App.SetSysItem(bit, !App.SysOn(bit))
+            Text = L.S(m.Key), Checked = () => Settings.SysOn(m.Bit),
+            Enabled = () => Settings.ShowSystem && (!Settings.SysOn(m.Bit) || (Settings.SysItems & ~m.Bit) != 0),
+            Click = () => Settings.SetSysItem(m.Bit, !Settings.SysOn(m.Bit))
         };
 
         static MainWindow Application_FirstPlayer() => System.Windows.Application.Current.Windows.OfType<MainWindow>().FirstOrDefault();

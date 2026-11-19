@@ -165,7 +165,7 @@ namespace MiniPlayer
             while (true)
             {
                 protoKick = new();
-                if (App.ShowBattery)
+                if (Settings.ShowBattery)
                 {
                     try
                     {

@@ -12,11 +12,14 @@ namespace MiniPlayer
     //         funciona com várias GPUs e qualquer fabricante)
     //  - Temp. GPU: dados do driver de vídeo (D3DKMT), os mesmos do Gerenciador de Tarefas (GPUs dedicadas, driver WDDM 2.4+)
     //  - Temp. CPU: zonas térmicas ACPI do Windows (aproximada; depende da placa-mãe informar)
+    //  - Rede: contadores de bytes das placas (não gera tráfego); Ping: 1 pacote de 16 bytes a 1.1.1.1 (reserva 8.8.8.8)
     // Lê a cada 2 s, só os itens ligados. Valor -1 = indisponível neste PC.
     static class SystemMonitor
     {
         public static int Ram = -1, Cpu = -1, Gpu = -1, CpuTemp = -1, GpuTemp = -1;
         public static double NetDown = -1, NetUp = -1; // bytes/s (tráfego atual da placa de rede; não usa a internet)
+        public static long PingMs = -1;                  // -1 = medindo, -2 = sem resposta
+        public static string PingHost => pingHosts[pingIdx].ToString();
         public static event Action Updated;
         static Timer timer;
 
@@ -33,19 +36,46 @@ namespace MiniPlayer
             try
             {
                 // só lê o que está ligado no menu; o que foi desligado libera seus recursos
-                Ram = App.SysOn(1) ? ReadRam() : -1;
-                if (App.SysOn(2)) Cpu = ReadCpu(); else { Cpu = -1; cpuQ.Close(); }
-                if (App.SysOn(4)) CpuTemp = ReadCpuTemp(); else { CpuTemp = -1; tzQ.Close(); }
-                if (App.SysOn(8)) Gpu = ReadGpu(); else { Gpu = -1; gpuQ.Close(); }
-                if (App.SysOn(16)) GpuTemp = ReadGpuTemp(); else { GpuTemp = -1; CloseAdapters(); }
-                if (App.SysOn(32)) { NetDown = ReadNet(netDownQ); NetUp = ReadNet(netUpQ); } else { NetDown = NetUp = -1; netDownQ.Close(); netUpQ.Close(); }
+                Ram = On(SysMetric.Ram) ? ReadRam() : -1;
+                if (On(SysMetric.Cpu)) Cpu = ReadCpu(); else { Cpu = -1; cpuQ.Close(); }
+                if (On(SysMetric.CpuTemp)) CpuTemp = ReadCpuTemp(); else { CpuTemp = -1; tzQ.Close(); }
+                if (On(SysMetric.Gpu)) Gpu = ReadGpu(); else { Gpu = -1; gpuQ.Close(); }
+                if (On(SysMetric.GpuTemp)) GpuTemp = ReadGpuTemp(); else { GpuTemp = -1; CloseAdapters(); }
+                if (On(SysMetric.Net)) { NetworkStatus.Poll(); NetDown = ReadNet(netDownQ); NetUp = ReadNet(netUpQ); } else { NetDown = NetUp = -1; netDownQ.Close(); netUpQ.Close(); }
+                if (On(SysMetric.Ping)) StartPing(); else ClosePing();
                 Updated?.Invoke();
             }
             catch { }
             finally { busy = 0; }
         }
 
-        static void CloseAll() { cpuQ.Close(); tzQ.Close(); gpuQ.Close(); netDownQ.Close(); netUpQ.Close(); CloseAdapters(); Ram = Cpu = Gpu = CpuTemp = GpuTemp = -1; NetDown = NetUp = -1; }
+        static bool On(int bit) => Settings.ShowSystem && Settings.SysOn(bit);
+        static void CloseAll() { cpuQ.Close(); tzQ.Close(); gpuQ.Close(); netDownQ.Close(); netUpQ.Close(); CloseAdapters(); ClosePing(); Ram = Cpu = Gpu = CpuTemp = GpuTemp = -1; NetDown = NetUp = -1; }
+
+        // ---- ping: um único pacote pequeno (16 bytes) a cada 2 s, sem esperar a resposta na thread do monitor ----
+        static readonly System.Net.IPAddress[] pingHosts = { System.Net.IPAddress.Parse("1.1.1.1"), System.Net.IPAddress.Parse("8.8.8.8") };
+        static readonly byte[] pingData = new byte[16];
+        static System.Net.NetworkInformation.Ping pinger;
+        static int pingIdx, pingBusy;
+        static void StartPing()
+        {
+            if (Interlocked.Exchange(ref pingBusy, 1) == 1) return; // a anterior ainda não voltou
+            pinger ??= new System.Net.NetworkInformation.Ping();
+            var p = pinger;
+            p.SendPingAsync(pingHosts[pingIdx], 1000, pingData).ContinueWith(t =>
+            {
+                bool ok = t.Status == System.Threading.Tasks.TaskStatus.RanToCompletion && t.Result.Status == System.Net.NetworkInformation.IPStatus.Success;
+                if (ok) PingMs = t.Result.RoundtripTime;
+                else { PingMs = -2; pingIdx ^= 1; }             // sem resposta: tenta o outro servidor na próxima
+                pingBusy = 0;
+            });
+        }
+        static void ClosePing()
+        {
+            PingMs = -1;
+            if (pinger == null || pingBusy == 1) return;
+            pinger.Dispose(); pinger = null;
+        }
 
         // ---- rede: contadores de bytes das placas de rede do Windows (só lê números, nenhum tráfego é gerado) ----
         static readonly Pdh netDownQ = new(@"\Network Interface(*)\Bytes Received/sec"), netUpQ = new(@"\Network Interface(*)\Bytes Sent/sec");
