@@ -40,12 +40,15 @@ namespace MiniPlayer
             {
                 // marcado = fixo na barra; desmarcado = solto na tela (arrastável)
                 new() { Text = L.S("fixed"), Checked = () => !Settings.Floating, Click = () => Float(!Settings.Floating) },
-                new() { Text = L.S("pos"), Children = new()
+                new() { Text = L.S("lock"), Checked = () => Settings.FloatLocked, Enabled = () => Settings.Floating, Click = () => Settings.SetFloatLocked(!Settings.FloatLocked) },
+                new() { Text = L.S("pos"), Enabled = () => Settings.Floating, Children = new()
                 {
-                    new() { Text = L.S("vert"),     Checked = () => Settings.FloatVertical, Enabled = () => Settings.Floating, Click = () => Settings.SetFloatVertical(!Settings.FloatVertical) },
-                    new() { Text = L.S("lock"),     Checked = () => Settings.FloatLocked,   Enabled = () => Settings.Floating, Click = () => Settings.SetFloatLocked(!Settings.FloatLocked) },
-                    new() { Text = L.S("behind"),   Checked = () => Settings.FloatBehind,   Enabled = () => Settings.Floating, Click = () => Settings.SetBehind(!Settings.FloatBehind) },
+                    new() { Text = L.S("vert"),  Checked = () => Settings.FloatVertical,  Enabled = () => Settings.Floating, Click = () => Settings.SetFloatVertical(true) },
+                    new() { Text = L.S("horiz"), Checked = () => !Settings.FloatVertical, Enabled = () => Settings.Floating, Click = () => Settings.SetFloatVertical(false) },
+                    MenuNode.Sep,
+                    new() { Text = L.S("behind"), Checked = () => Settings.FloatBehind, Enabled = () => Settings.Floating, Click = () => Settings.SetBehind(!Settings.FloatBehind) },
                 }},
+                MenuNode.Sep,
                 new() { Text = L.S("show"), Children = new()
                 {
                     // um dos dois sempre fica visível: o que estiver sozinho não pode ser desmarcado

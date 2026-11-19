@@ -12,16 +12,16 @@ namespace MiniPlayer
         static readonly Dictionary<string, string[]> T = new()
         {
             //                  pt                                         en                                       es                                          fr                                           de
-            ["pos"]      = new[] { "Posição", "Position", "Posición", "Position", "Position" },
+            ["pos"]      = new[] { "Posição (Solto)", "Position (Floating)", "Posición (Flotante)", "Position (Flottant)", "Position (Schwebend)" },
             ["fixed"]    = new[] { "Fixo na barra de tarefas", "Docked to the taskbar", "Fijo en la barra de tareas", "Ancré à la barre des tâches", "An der Taskleiste angedockt" },
-            ["vert"]     = new[] { "Layout vertical (solto)", "Vertical layout (floating)", "Diseño vertical (flotante)", "Disposition verticale (flottant)", "Vertikales Layout (schwebend)" },
-            ["behind"]   = new[] { "Atrás das janelas (solto)", "Behind windows (floating)", "Detrás de las ventanas (flotante)", "Derrière les fenêtres (flottant)", "Hinter Fenstern (schwebend)" },
-            ["lock"]     = new[] { "Travar posição (solto)", "Lock position (floating)", "Bloquear posición (flotante)", "Verrouiller la position (flottant)", "Position sperren (schwebend)" },
+            ["vert"]     = new[] { "Layout vertical", "Vertical layout", "Diseño vertical", "Disposition verticale", "Vertikales Layout" },
+            ["behind"]   = new[] { "Atrás das janelas", "Behind windows", "Detrás de las ventanas", "Derrière les fenêtres", "Hinter Fenstern" },
+            ["lock"]     = new[] { "Travar posição", "Lock position", "Bloquear posición", "Verrouiller la position", "Position sperren" },
             ["size"]     = new[] { "Tamanho", "Size", "Tamaño", "Taille", "Größe" },
             ["small"]    = new[] { "Pequeno", "Small", "Pequeño", "Petit", "Klein" },
             ["medium"]   = new[] { "Médio", "Medium", "Mediano", "Moyen", "Mittel" },
             ["large"]    = new[] { "Grande", "Large", "Grande", "Grand", "Groß" },
-            ["left"]     = new[] { "restantes", "left", "restantes", "restantes", "übrig" },
+            ["left"]     = new[] { "restantes", "left", "restantes", "restant", "verbleibend" },
             ["estimating"] = new[] { "calculando o tempo restante…", "estimating time left…", "calculando el tiempo restante…", "estimation du temps restant…", "Restzeit wird berechnet…" },
             ["source"]   = new[] { "Trocar fonte de mídia", "Switch media source", "Cambiar fuente multimedia", "Changer de source", "Medienquelle wechseln" },
             ["volume"]   = new[] { "Role o mouse para o volume", "Scroll to change volume", "Gira la rueda para el volumen", "Molette pour le volume", "Mausrad für Lautstärke" },
@@ -35,8 +35,9 @@ namespace MiniPlayer
             ["net"]      = new[] { "Velocidade da rede", "Network speed", "Velocidad de red", "Débit réseau", "Netzwerkgeschwindigkeit" },
             ["ping"]     = new[] { "Latência (ping)", "Latency (ping)", "Latencia (ping)", "Latence (ping)", "Latenz (Ping)" },
             ["noreply"]  = new[] { "sem resposta", "no reply", "sin respuesta", "pas de réponse", "keine Antwort" },
-            ["wired"]    = new[] { "Cabo", "Wired", "Cable", "Câble", "Kabel" },
+            ["wired"]    = new[] { "Cabo", "Wired", "Cable", "Filaire", "Kabel (LAN)" },
             ["carousel"] = new[] { "Rolar itens automaticamente", "Scroll items automatically", "Desplazar elementos automáticamente", "Défilement automatique des éléments", "Elemente automatisch durchblättern" },
+            ["horiz"]    = new[] { "Layout horizontal", "Horizontal layout", "Diseño horizontal", "Disposition horizontale", "Horizontales Layout" },
             ["na"]       = new[] { "indisponível neste PC", "not available on this PC", "no disponible en este PC", "indisponible sur ce PC", "auf diesem PC nicht verfügbar" },
             ["show"]     = new[] { "Exibir", "Show", "Mostrar", "Afficher", "Anzeigen" },
             ["media"]    = new[] { "Controles de mídia", "Media controls", "Controles multimedia", "Commandes multimédia", "Mediensteuerung" },
@@ -48,7 +49,7 @@ namespace MiniPlayer
             ["untitled"] = new[] { "Sem título", "Untitled", "Sin título", "Sans titre", "Ohne Titel" },
             ["charging"] = new[] { "carregando", "charging", "cargando", "en charge", "wird geladen" },
             ["nobatt"]   = new[] { "conectado (o aparelho não informa a bateria)", "connected (the device doesn't report its battery)", "conectado (el dispositivo no informa la batería)", "connecté (l'appareil n'indique pas sa batterie)", "verbunden (Gerät meldet keinen Akkustand)" },
-            // temas, na ordem de App.Themes
+            // temas, na ordem de Themes.All
             ["t0"] = new[] { "Padrão (transparente)", "Default (transparent)", "Predeterminado (transparente)", "Par défaut (transparent)", "Standard (transparent)" },
             ["t1"] = new[] { "Escuro", "Dark", "Oscuro", "Sombre", "Dunkel" },
             ["t2"] = new[] { "Claro", "Light", "Claro", "Clair", "Hell" },

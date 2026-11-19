@@ -70,7 +70,7 @@ namespace MiniPlayer
         {
             try
             {
-                if (session == null || Settings.HidePlayer || !IsVisible) { Progress.Visibility = Visibility.Collapsed; return; }
+                if (session == null || Settings.HidePlayer || !IsVisible || !ShowProgress) { Progress.Visibility = Visibility.Collapsed; return; }
                 var tl = session.GetTimelineProperties();
                 double dur = (tl.EndTime - tl.StartTime).TotalSeconds;
                 if (dur < 1) { Progress.Visibility = Visibility.Collapsed; return; } // sem duração (ex.: ao vivo)
@@ -214,14 +214,14 @@ namespace MiniPlayer
 
         async Task Refresh(bool fromDebounce = false)
         {
-            if (session == null) { shownKey = pendingKey = null; isPlaying = false; Progress.Visibility = Visibility.Collapsed; SetTitle(L.S("nothing")); ArtistText.Text = ""; Art.Source = null; NoArt.Visibility = Visibility.Visible; PlayBtn.Content = ""; return; }
+            if (session == null) { shownKey = pendingKey = null; isPlaying = false; Progress.Visibility = Visibility.Collapsed; SetTitle(L.S("nothing")); ArtistText.Text = ""; Art.Source = null; NoArt.Visibility = Visibility.Visible; SetPlayIcon(false); return; }
             try
             {
                 var p = await session.TryGetMediaPropertiesAsync();
                 var playing = session.GetPlaybackInfo().PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
                 isPlaying = playing;
                 UpdateProgress();
-                PlayBtn.Content = playing ? "" : "";
+                SetPlayIcon(playing);
                 string baseKey = (p.Title ?? "") + "\n" + (p.Artist ?? "");
                 string key = baseKey + (p.Thumbnail != null ? "\n+capa" : "");
                 if (key == shownKey) { pendingKey = null; return; } // mesma mídia (ex.: só pausou/voltou ao original)
@@ -261,6 +261,10 @@ namespace MiniPlayer
             }
             catch { }
         }
+
+        // ícones de mídia desenhados (mesmo traço dos demais ícones do app)
+        static readonly Geometry PlayGeo = Geometry.Parse("M5,3 L13,8 L5,13 Z"), PauseGeo = Geometry.Parse("M4.5,3.5 H7 V12.5 H4.5 Z M9,3.5 H11.5 V12.5 H9 Z");
+        void SetPlayIcon(bool playing) { var g = playing ? PauseGeo : PlayGeo; if (PlayIcon.Data != g) PlayIcon.Data = g; }
 
         async void Prev_Click(object s, RoutedEventArgs e) { immediateUntil = DateTime.Now.AddSeconds(5); if (session != null) await session.TrySkipPreviousAsync(); }
         async void Play_Click(object s, RoutedEventArgs e) { if (session != null) await session.TryTogglePlayPauseAsync(); }

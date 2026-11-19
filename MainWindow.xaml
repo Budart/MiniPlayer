@@ -55,12 +55,12 @@
       </StackPanel>
       <UniformGrid x:Name="Spectrum" Grid.Column="0" Rows="1" Opacity="0.28" IsHitTestVisible="False"/>
       <StackPanel x:Name="Controls" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-        <Button x:Name="PrevBtn" Content="&#xE892;" Click="Prev_Click"/>
-        <Button x:Name="PlayBtn" Content="&#xE768;" Click="Play_Click"/>
-        <Button x:Name="NextBtn" Content="&#xE893;" Click="Next_Click"/>
+        <Button x:Name="PrevBtn" Click="Prev_Click"><Path x:Name="PrevIcon" Data="M3.5,3.5 V12.5 M12.5,3.5 L5.5,8 L12.5,12.5 Z" Stroke="White" StrokeThickness="1.4" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Width="16" Height="16" Stretch="None" SnapsToDevicePixels="True"/></Button>
+        <Button x:Name="PlayBtn" Click="Play_Click"><Path x:Name="PlayIcon" Data="M5,3 L13,8 L5,13 Z" Stroke="White" StrokeThickness="1.4" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Width="16" Height="16" Stretch="None" SnapsToDevicePixels="True"/></Button>
+        <Button x:Name="NextBtn" Click="Next_Click"><Path x:Name="NextIcon" Data="M12.5,3.5 V12.5 M3.5,3.5 L10.5,8 L3.5,12.5 Z" Stroke="White" StrokeThickness="1.4" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Width="16" Height="16" Stretch="None" SnapsToDevicePixels="True"/></Button>
         <Button x:Name="SwapBtn" Click="Swap_Click" Visibility="Collapsed">
           <!-- duas setas opostas (⇄): alternar entre as mídias abertas -->
-          <Path x:Name="SwapIcon" Data="M2,5 H13 M10,2 L13,5 L10,8 M14,12 H3 M6,9 L3,12 L6,15" Stroke="White" StrokeThickness="1.5"
+          <Path x:Name="SwapIcon" Data="M2,5 H13 M10,2 L13,5 L10,8 M14,12 H3 M6,9 L3,12 L6,15" Stroke="White" StrokeThickness="1.4"
                 StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Width="13" Height="12" Stretch="Uniform" SnapsToDevicePixels="True"/>
         </Button>
       </StackPanel>

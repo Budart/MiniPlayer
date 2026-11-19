@@ -122,16 +122,23 @@ namespace MiniPlayer
                 if ((r.B - r.T) > (r.R - r.L))
                 {
                     SetVertical(true, (r.R - r.L) / s);
-                    ResetCompact();
+                    int vpad = (int)(8 * s);
+                    var vgap = barGap;
+                    // encaixa no vão livre (sem cobrir ícones); se não couber: sem capa, sem progresso, menos itens do monitor
+                    if (vgap == null) ResetCompact(); else FitTo((vgap.End - vgap.Start - 2 * vpad) / s);
                     UpdateLayout();
                     GetWindowRect(me, out w);
                     int vh = w.B - w.T, vy;
-                    if (App.Centered) vy = r.T + (int)(8 * s);
+                    if (App.Centered) vy = (vgap?.Start ?? r.T) + vpad;
                     else
                     {
-                        var tr = isPrimary ? FindWindowEx(bar, IntPtr.Zero, "TrayNotifyWnd", null) : IntPtr.Zero;
-                        int top = tr != IntPtr.Zero && GetWindowRect(tr, out var tt) ? tt.T : r.B - (int)(160 * s);
-                        vy = top - vh - (int)(8 * s);
+                        int top = vgap?.End ?? 0;
+                        if (vgap == null)
+                        {
+                            var tr = isPrimary ? FindWindowEx(bar, IntPtr.Zero, "TrayNotifyWnd", null) : IntPtr.Zero;
+                            top = tr != IntPtr.Zero && GetWindowRect(tr, out var tt) ? tt.T : r.B - (int)(160 * s);
+                        }
+                        vy = top - vh - vpad;
                     }
                     if (w.L != r.L || w.T != vy) SetWindowPos(me, IntPtr.Zero, r.L, vy, 0, 0, 0x0001 | 0x0004 | 0x0010);
                     if (!menuOpen && !fullscreen) ApplyZ();
@@ -145,12 +152,12 @@ namespace MiniPlayer
                 int pad = (int)(8 * s);
                 var gap = barGap;
                 if (gap == null) ResetCompact();
-                else if (FitTo((gap.R - gap.L - 2 * pad) / s)) { UpdateLayout(); GetWindowRect(me, out w); }
+                else if (FitTo((gap.End - gap.Start - 2 * pad) / s)) { UpdateLayout(); GetWindowRect(me, out w); }
                 int wPx = w.R - w.L, hPx = w.B - w.T, x;
-                if (App.Centered) x = (gap?.L ?? r.L) + pad;                    // à esquerda (depois do clima/Widgets)
+                if (App.Centered) x = (gap?.Start ?? r.L) + pad;                    // à esquerda (depois do clima/Widgets)
                 else
                 {
-                    int anchor = gap?.R ?? 0;
+                    int anchor = gap?.End ?? 0;
                     if (gap == null)
                     {
                         var tray = isPrimary ? FindWindowEx(bar, IntPtr.Zero, "TrayNotifyWnd", null) : IntPtr.Zero;  // bandeja do sistema
@@ -296,8 +303,14 @@ namespace MiniPlayer
         }
         void RequestScan() { if ((DateTime.Now - lastScan).TotalSeconds >= 1) ThreadPool.QueueUserWorkItem(_ => Scan()); }
 
-        // Etapas: 0 normal · 1–2 menos itens do monitor (3 → 1, o resto rola) · 3 sem título · 4 sem capa
+        // Etapas do modo compacto (0 = normal):
+        //  barra horizontal: 1–2 menos itens do monitor (3 → 1, o resto rola) · 3 sem título · 4 sem capa
+        //  barra lateral:    1 sem capa · 2 sem progresso · 3–4 menos itens do monitor (3 → 1)
         int compact; double fitWidth = -1; bool fitDirty = true;
+        bool ShowArt => vertical ? compact < 1 : compact < 4;
+        bool ShowTitle => !vertical && compact < 3;
+        bool ShowProgress => vertical ? compact < 2 : compact < 3;
+        int SysVisibleFor(int level) => SysVisibleMax - Math.Clamp(vertical ? level - 2 : level, 0, 2);
         void InvalidateFit() => fitDirty = true;
         bool FitTo(double avail)
         {
@@ -308,7 +321,7 @@ namespace MiniPlayer
             {
                 SetCompact(level);
                 Root.Measure(inf);
-                if (Root.DesiredSize.Width <= avail) break;
+                if ((vertical ? Root.DesiredSize.Height : Root.DesiredSize.Width) <= avail) break;
             }
             return true;
         }
@@ -318,7 +331,7 @@ namespace MiniPlayer
         {
             if (level == compact) return;
             compact = level;
-            sysVisible = SysVisibleMax - Math.Min(level, 2);
+            sysVisible = SysVisibleFor(level);
             ShowSysWindow(false);
             ApplyVisibility();
         }

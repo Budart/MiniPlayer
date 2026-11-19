@@ -43,7 +43,7 @@ namespace MiniPlayer
             // temas com fundo: leve recuo (3 px) para o fundo parecer "dentro" da barra, sem encostar nas bordas dela
             Root.Margin = Settings.Theme == 0 ? new Thickness(0) : new Thickness(3);
             TitleText.Foreground = fg; ArtistText.Foreground = dyn ? dynFg2 : B(th.Fg2); NoArt.Foreground = fg;
-            PrevBtn.Foreground = PlayBtn.Foreground = NextBtn.Foreground = SwapBtn.Foreground = fg; SwapIcon.Stroke = fg;
+            PrevBtn.Foreground = PlayBtn.Foreground = NextBtn.Foreground = SwapBtn.Foreground = fg; SwapIcon.Stroke = PrevIcon.Stroke = PlayIcon.Stroke = NextIcon.Stroke = fg;
             ProgFill.Background = ProgTrack.Background = fg;
             SizeScale.ScaleX = SizeScale.ScaleY = Settings.SizeScales[Settings.PlayerSize];
             RebuildSystem();
@@ -64,8 +64,9 @@ namespace MiniPlayer
             bool media = !Settings.HidePlayer;
             static Visibility V(bool on) => on ? Visibility.Visible : Visibility.Collapsed;
             Controls.Visibility = Spectrum.Visibility = V(media);
-            ArtBox.Visibility = V(media && compact < 4);
-            InfoPanel.Visibility = V(media && !vertical && compact < 3);
+            ArtBox.Visibility = V(media && ShowArt);
+            InfoPanel.Visibility = V(media && ShowTitle);
+            UpdateProgress();
         }
 
         // ---- Tema dinâmico: usa a cor da capa (já calculada para o espectro, numa miniatura de 16x16).
